@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0c17">
+<title>2048 · OI 版 — 手动 / AI 托管</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23edc22e'/%3E%3Ctext x='32' y='44' font-size='34' text-anchor='middle' font-family='Arial' font-weight='bold' fill='%23282828'%3E2048%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --txt:#e9ecff; --mut:#9aa3c7; --dim:#6b7399;
+  --acc:#7c6cff; --acc2:#37d0ff;
+  --panel:rgba(255,255,255,.055); --panel-brd:rgba(255,255,255,.1);
+  --board:#0d1022;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  min-height:100vh; color:var(--txt);
+  font-family:"SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:#0a0c17; overflow-x:hidden; font-size:15px;
+}
+body::before{content:"";position:fixed;inset:0;z-index:-2;
+  background:
+   radial-gradient(1100px 760px at 88% -12%, rgba(124,108,255,.30), transparent 62%),
+   radial-gradient(900px 680px at -12% 112%, rgba(55,208,255,.20), transparent 58%),
+   radial-gradient(820px 620px at 50% 118%, rgba(255,110,199,.13), transparent 60%),
+   #0a0c17;}
+body::after{content:"";position:fixed;inset:0;z-index:-1;opacity:.05;
+  background-image:linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px);
+  background-size:44px 44px;}
+
+.shell{max-width:600px;margin:0 auto;padding:18px 16px 60px;min-height:100vh;display:flex;flex-direction:column}
+.page{display:none;animation:pageIn .35s ease both}
+.page.active{display:block}
+@keyframes pageIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.panel{background:var(--panel);border:1px solid var(--panel-brd);border-radius:22px;
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 24px 70px rgba(0,0,0,.38)}
+
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 18px;border-radius:14px;
+  border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);color:var(--txt);
+  font-weight:600;transition:transform .12s ease, box-shadow .2s ease, background .2s;user-select:none}
+.btn:hover{background:rgba(255,255,255,.12);transform:translateY(-1px)}
+.btn:active{transform:translateY(0) scale(.98)}
+.btn svg{width:18px;height:18px;flex:none}
+.btn-primary{background:linear-gradient(135deg,#7c6cff,#4f9bff);border-color:transparent;box-shadow:0 10px 26px -8px rgba(124,108,255,.75)}
+.btn-primary:hover{background:linear-gradient(135deg,#8d7eff,#63a8ff);box-shadow:0 14px 30px -8px rgba(124,108,255,.85)}
+.btn-danger{background:rgba(255,92,110,.14);border-color:rgba(255,92,110,.35);color:#ff97a2}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--mut)}
+.btn-sm{padding:8px 12px;font-size:13px;border-radius:11px}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+.icon-btn{width:38px;height:38px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--panel-brd);background:rgba(255,255,255,.06)}
+.icon-btn:hover{background:rgba(255,255,255,.12)}
+.icon-btn svg{width:18px;height:18px}
+
+/* ============ 主菜单 ============ */
+#page-menu{display:flex;flex-direction:column;justify-content:center;min-height:calc(100vh - 80px);padding-top:20px}
+.brand-row{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:6px}
+.logo-stack{display:flex;gap:6px}
+.logo-tile{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;
+  box-shadow:0 6px 18px -4px rgba(0,0,0,.5)}
+.hero-title{margin:8px 0 2px;font-size:46px;font-weight:800;letter-spacing:2px;text-align:center;
+  background:linear-gradient(100deg,#fff 10%,#c9d3ff 45%,#6fe3ff 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-sub{text-align:center;color:var(--mut);margin:0 0 30px;font-size:15px}
+.menu-list{display:flex;flex-direction:column;gap:14px;margin-top:6px}
+.menu-card{display:flex;align-items:center;gap:16px;padding:16px 18px;text-align:left;border-radius:20px;width:100%;
+  border:1px solid var(--panel-brd);background:rgba(255,255,255,.05);transition:transform .15s,background .2s,border-color .2s}
+.menu-card:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);transform:translateX(4px)}
+.menu-card:active{transform:scale(.985)}
+.menu-ic{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex:none}
+.menu-ic svg{width:24px;height:24px}
+.menu-txt{flex:1}
+.menu-title{font-weight:700;font-size:17px;display:flex;align-items:center;gap:8px}
+.menu-desc{color:var(--mut);font-size:13px;margin-top:2px;line-height:1.5}
+.menu-arrow{color:var(--dim)}
+.tag{font-size:10px;font-weight:700;padding:3px 7px;border-radius:99px;letter-spacing:.5px;
+  background:linear-gradient(135deg,#7c6cff,#37d0ff);color:#fff;vertical-align:2px}
+.menu-foot{text-align:center;color:var(--dim);font-size:12.5px;margin-top:26px;line-height:1.8}
+.link-dim{color:var(--mut);text-decoration:none;border-bottom:1px dashed rgba(154,163,199,.5)}
+.link-dim:hover{color:#fff}
+
+/* ============ 游戏页 ============ */
+.g-top{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.g-title{flex:1;font-weight:800;font-size:19px;display:flex;align-items:center;gap:10px}
+.mode-pill{font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:99px;letter-spacing:.5px}
+.mode-pill.manual{background:rgba(55,208,255,.16);color:#7fe0ff;border:1px solid rgba(55,208,255,.35)}
+.mode-pill.ai{background:rgba(124,108,255,.18);color:#b9afff;border:1px solid rgba(124,108,255,.4)}
+.score-row{display:flex;gap:10px;margin-bottom:14px}
+.score-chip{flex:1;padding:12px 14px;border-radius:16px;border:1px solid var(--panel-brd);background:rgba(255,255,255,.05);
+  display:flex;flex-direction:column;gap:2px}
+.score-chip .lb{font-size:11px;color:var(--dim);letter-spacing:2px;font-weight:600}
+.score-chip .vl{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.score-chip.accent .vl{background:linear-gradient(90deg,#ffd76a,#ff9f6a);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.board-wrap{margin:0 auto;width:100%;max-width:470px}
+#board{position:relative;aspect-ratio:1;border-radius:18px;background:linear-gradient(160deg,#11152c,#0b0e1f);
+  border:1px solid rgba(255,255,255,.09);box-shadow:inset 0 2px 10px rgba(0,0,0,.5), 0 24px 60px -18px rgba(0,0,0,.7);margin:0 auto}
+.slot{position:absolute;border-radius:13px;background:rgba(255,255,255,.045);box-shadow:inset 0 1px 3px rgba(0,0,0,.35)}
+.tile{position:absolute;top:0;left:0;will-change:transform}
+.tile .tb{width:100%;height:100%;border-radius:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  transition:opacity .12s ease, transform .12s ease;text-align:center}
+.tile.off .tb{opacity:0;transform:scale(.4)}
+.tile .main{font-weight:800;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile .sub{font-weight:700;opacity:.55;line-height:1;letter-spacing:.5px}
+.tile.merge .tb{animation:mergePop .18s ease-out .13s both}
+.tile.slide .tb{animation:slideIn .11s ease-out .12s both}
+.tile.spawn .tb{animation:spawnIn .15s ease .12s both}
+.tile.glow .tb{box-shadow:0 0 26px -4px currentColor}
+@keyframes mergePop{0%{transform:scale(.2);filter:brightness(1.9)}55%{transform:scale(1.13);filter:brightness(1.25)}100%{transform:scale(1);filter:brightness(1)}}
+@keyframes spawnIn{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes slideIn{0%{transform:scale(.85);opacity:0}100%{transform:scale(1);opacity:1}}
+.float-tile{position:absolute;top:0;left:0;z-index:6;pointer-events:none;will-change:transform}
+.float-tile .tb{width:100%;height:100%;border-radius:13px;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.float-tile .main{font-weight:800;line-height:1;white-space:nowrap}
+.float-tile .sub{font-weight:700;opacity:.55;line-height:1;letter-spacing:.5px}
+
+.board-shake{animation:shake .3s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+
+.hint-line{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--dim);font-size:12.5px;margin-top:14px}
+kbd{font:inherit;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:1px 6px;font-size:11.5px}
+
+.ctrl-panel{margin-top:16px;padding:14px;border-radius:18px}
+.ctrl-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ctrl-row .spacer{flex:1}
+.seg{display:inline-flex;border:1px solid var(--panel-brd);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.04)}
+.seg button{padding:8px 13px;font-size:12.5px;font-weight:600;color:var(--mut)}
+.seg button.on{background:rgba(124,108,255,.28);color:#fff}
+.spacer{flex:1}
+.speed-box{flex:1;min-width:170px;display:flex;align-items:center;gap:10px}
+.speed-box label{font-size:12.5px;color:var(--mut);white-space:nowrap}
+.speed-box .val{font-size:12.5px;color:var(--txt);min-width:26px;font-weight:700}
+input[type=range]{flex:1;accent-color:#7c6cff;height:22px}
+.dpad{display:none;justify-content:center;gap:8px;margin-top:14px}
+.dpad .dbtn{width:52px;height:44px;border-radius:12px;border:1px solid var(--panel-brd);background:rgba(255,255,255,.07);
+  display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--txt)}
+.dpad .dbtn:active{background:rgba(255,255,255,.16);transform:scale(.96)}
+@media (max-width:560px){ .dpad{display:flex} }
+
+/* ============ 帮助 / 彩蛋 ============ */
+.sub-nav{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.sub-nav h2{margin:0;font-size:20px;flex:1;font-weight:800}
+.help-card{padding:18px 20px;margin-bottom:16px;line-height:1.85;color:#d6dbff}
+.help-card h3{margin:0 0 6px;font-size:15.5px;color:#fff}
+.help-card ul{margin:0;padding-left:20px}
+.help-card li{margin:3px 0}
+.legend-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.legend-item{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04)}
+.legend-sq{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:none}
+.legend-item .lx{font-size:12.5px;font-weight:700}
+.legend-item .lv{font-size:11px;color:var(--dim)}
+
+#page-akioi{position:relative;transition:filter 1s}
+.ak-head{text-align:center;margin:8px 0 22px}
+.ak-title{font-size:44px;font-weight:800;margin:6px 0 4px;
+  background:linear-gradient(100deg,#ffd76a,#ff9f6a,#ff6aa9,#7c6cff,#37d0ff);-webkit-background-clip:text;background-clip:text;color:transparent;
+  background-size:300% 100%;animation:hueFlow 6s linear infinite}
+@keyframes hueFlow{to{background-position:300% 0}}
+.ak-sub{color:var(--mut);font-size:14px}
+.ak-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:22px}
+.ak-chip{padding:13px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:3px;
+  background:rgba(255,255,255,.05)}
+.ak-chip b{font-size:19px;font-weight:800}
+.ak-chip span{font-size:12.5px;color:var(--mut)}
+.ak-note{color:var(--dim);text-align:center;font-size:13px;margin-top:6px}
+.flash-log{min-height:60px;margin:16px 0;text-align:center}
+.flash-log code{font-family:ui-monospace,Consolas,monospace;background:rgba(0,0,0,.35);padding:2px 8px;border-radius:6px;color:#ffd76a}
+
+/* ============ 模态 / 提示 ============ */
+.modal-root{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(4,6,14,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.modal-root[hidden]{display:none}
+.modal{width:100%;max-width:400px;background:linear-gradient(180deg,#1a1e38,#12152b);border:1px solid rgba(255,255,255,.12);
+  border-radius:24px;padding:24px;box-shadow:0 40px 100px rgba(0,0,0,.6);animation:pageIn .28s ease both;max-height:86vh;overflow:auto}
+.modal h3{margin:0 0 6px;font-size:20px;font-weight:800}
+.modal p{margin:6px 0 16px;color:var(--mut);line-height:1.7}
+.modal .actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.modal .actions .btn{flex:1;min-width:110px}
+.start-cards{display:flex;flex-direction:column;gap:10px;margin:6px 0 18px}
+.start-card{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:15px;border:1px solid var(--panel-brd);
+  background:rgba(255,255,255,.05);text-align:left;width:100%;transition:background .15s,transform .1s}
+.start-card:hover{background:rgba(255,255,255,.1)}
+.start-card:active{transform:scale(.98)}
+.start-card .st{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;flex:1}
+.start-card small{color:var(--dim);font-size:11.5px;display:block;margin-top:1px;font-weight:400}
+.start-card.disabled{opacity:.4;pointer-events:none}
+.grid-16{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}
+.grid-16 input{width:100%;height:52px;text-align:center;font-size:16px;font-weight:700;color:#fff;border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);outline:none}
+.grid-16 input:focus{border-color:#7c6cff;box-shadow:0 0 0 3px rgba(124,108,255,.25)}
+.grid-16 input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
+.big-end{text-align:center;padding:6px 0 4px}
+.big-end .eb{font-size:52px;font-weight:800;line-height:1;background:linear-gradient(100deg,#ffd76a,#ff9f6a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.big-end .es{color:var(--mut);margin-top:10px;line-height:1.7}
+#toasts{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:rgba(30,34,60,.95);border:1px solid rgba(255,255,255,.14);color:#fff;padding:10px 18px;border-radius:12px;
+  font-size:13.5px;box-shadow:0 12px 34px rgba(0,0,0,.5);animation:pageIn .25s ease both;max-width:80vw}
+.toast.out{opacity:0;transition:opacity .3s}
+@media (max-width:420px){
+  .hero-title{font-size:38px}
+  .g-title{font-size:16px}
+  .score-chip .vl{font-size:20px}
+}
+</style>
+</head>
+<body>
+
+<main class="shell">
+
+  <!-- ========= 主菜单 ========= -->
+  <section class="page active" id="page-menu">
+    <div class="brand-row">
+      <div class="logo-stack">
+        <div class="logo-tile" style="background:#eee4da;color:#776e65">2</div>
+        <div class="logo-tile" style="background:#f2b179;color:#fff">8</div>
+        <div class="logo-tile" style="background:#f67c5f;color:#fff">64</div>
+        <div class="logo-tile" style="background:#edc22e;color:#fff">2K</div>
+      </div>
+    </div>
+    <h1 class="hero-title">2048 · OI</h1>
+    <p class="hero-sub">把 OJ 判题梗玩成数字消消乐 —— 还能让 AI 替你 AK</p>
+    <div class="menu-list">
+      <button class="menu-card" data-act="manual">
+        <span class="menu-ic" style="background:rgba(55,208,255,.16);color:#7fe0ff">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16M9 4v4M15 4v4M6 8l4 12M18 8l-4 12M10 20h4"/></svg>
+        </span>
+        <span class="menu-txt">
+          <span class="menu-title">手动模式 <span class="tag">经典</span></span>
+          <span class="menu-desc">方向键 / WASD 亲自上分 · 支持新游戏、读档、自定义棋盘</span>
+        </span>
+        <span class="menu-arrow">›</span>
+      </button>
+      <button class="menu-card" data-act="ai">
+        <span class="menu-ic" style="background:rgba(124,108,255,.18);color:#b9afff">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 10v.01M15 10v.01M9 15h6"/></svg>
+        </span>
+        <span class="menu-txt">
+          <span class="menu-title">AI 托管 <span class="tag" style="background:linear-gradient(135deg,#ff9f6a,#ff6aa9)">作弊模式</span></span>
+          <span class="menu-desc">内置 Expectimax 搜索 AI 自动代打，可调速、暂停与单步</span>
+        </span>
+        <span class="menu-arrow">›</span>
+      </button>
+      <button class="menu-card" data-act="help">
+        <span class="menu-ic" style="background:rgba(255,215,106,.16);color:#ffd76a">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5zM5 11v5c0 1.5 3 3.5 7 3.5s7-2 7-3.5v-5"/></svg>
+        </span>
+        <span class="menu-txt">
+          <span class="menu-title">游戏说明</span>
+          <span class="menu-desc">玩法规则 &amp; 判题梗图鉴（CE / WA / AC / AK…）</span>
+        </span>
+        <span class="menu-arrow">›</span>
+      </button>
+      <button class="menu-card" data-act="akioi">
+        <span class="menu-ic" style="background:rgba(255,110,169,.16);color:#ff8fc0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5.5a6 6 0 0 1 6 6c0 2.5-1 4.5-3 6l-3 3-3-3c-2-1.5-3-3.5-3-6a6 6 0 0 1 6-6z"/><path d="M8.5 12a2.5 2.5 0 0 0 4 2"/></svg>
+        </span>
+        <span class="menu-txt">
+          <span class="menu-title">搞笑的 AKIOI</span>
+          <span class="menu-desc">判题结果大百科 + 十六色系统闪屏彩蛋</span>
+        </span>
+        <span class="menu-arrow">›</span>
+      </button>
+    </div>
+    <div class="menu-foot">
+      存档自动保存在浏览器本地，可随时「继续游戏」<br>
+      想退出的话直接关闭标签页即可 —— 进度不会丢
+    </div>
+  </section>
+
+  <!-- ========= 游戏页 ========= -->
+  <section class="page" id="page-game">
+    <div class="g-top">
+      <button class="icon-btn" id="btnHome" title="返回主菜单">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/></svg>
+      </button>
+      <div class="g-title">2048 <span class="mode-pill manual" id="modePill">手动模式</span></div>
+      <button class="icon-btn" id="btnNew" title="重新开局">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8 8 0 1 0 18.6 16"/><path d="M20 4v7h-7"/></svg>
+      </button>
+    </div>
+
+    <div class="score-row">
+      <div class="score-chip"><span class="lb">SCORE</span><span class="vl" id="scoreVal">0</span></div>
+      <div class="score-chip accent"><span class="lb">BEST</span><span class="vl" id="bestVal">0</span></div>
+    </div>
+
+    <div class="board-wrap">
+      <div id="board"></div>
+    </div>
+
+    <div class="panel ctrl-panel" id="ctrlPanel"></div>
+
+    <div class="dpad" id="dpad">
+      <button class="dbtn" data-dir="0">▲</button>
+      <button class="dbtn" data-dir="2">◀</button>
+      <button class="dbtn" data-dir="1">▼</button>
+      <button class="dbtn" data-dir="3">▶</button>
+    </div>
+  </section>
+
+  <!-- ========= 帮助 ========= -->
+  <section class="page" id="page-help">
+    <div class="sub-nav">
+      <button class="icon-btn" data-back>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <h2>游戏说明</h2>
+    </div>
+    <div class="panel help-card">
+      <h3>玩法</h3>
+      <ul>
+        <li>每次用 <b>方向键 / WASD</b>（触屏滑动）让所有方块整体移动一格；</li>
+        <li>相同数字撞在一起会 <b>合并成它的两倍</b>，并计入分数；</li>
+        <li>每次有效移动后，随机空格出现 <b>2（90%）或 4（10%）</b>；</li>
+        <li>当没有相邻可合并、也没有空格时，游戏结束（Game Over）。</li>
+      </ul>
+    </div>
+    <div class="panel help-card">
+      <h3>特色</h3>
+      <ul>
+        <li><b>存档：</b>手动模式的每一步都会自动保存，可随时「继续游戏」；</li>
+        <li><b>自定义棋盘：</b>手动模式里可输入 4×4 个 2 的幂（如 2 / 4 / 16 / 2048），构造残局；</li>
+        <li><b>AI 托管：</b>内置 Expectimax + 启发式评估搜索，带概率剪枝与置换表缓存，可调速 / 暂停 / 单步观察；</li>
+        <li><b>隐藏目标：</b>合出 32768（AK）即达成「You AK IOI!」真结局。</li>
+      </ul>
+    </div>
+    <div class="panel help-card">
+      <h3>判题梗图鉴（方块名由来）</h3>
+      <div class="legend-grid" id="legendGrid"></div>
+    </div>
+  </section>
+
+  <!-- ========= AKIOI ========= -->
+  <section class="page" id="page-akioi">
+    <div class="sub-nav">
+      <button class="icon-btn" data-back>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <h2>搞笑的 AKIOI</h2>
+      <button class="btn btn-sm" id="btnReplayFlash">重播闪屏</button>
+    </div>
+    <div class="ak-head">
+      <div class="ak-title">AK&nbsp;IOI</div>
+      <div class="ak-sub">由 OJ 判题结果组成的快乐密码 —— 每一格方块都是一个老梗</div>
+    </div>
+    <div class="flash-log" id="flashLog"></div>
+    <div class="ak-grid" id="akGrid"></div>
+    <div class="ak-note" id="akNote">温馨提示：本页 16 种判题结果的配色顺序，正是当年 DOS 控制台的 `color` 参数轮播。</div>
+  </section>
+
+</main>
+
+<div class="modal-root" id="modalRoot" hidden></div>
+<div id="toasts"></div>
+
+<script>
+'use strict';
+/* ================================================================
+ *  核心引擎（纯逻辑，无 DOM）—— 2048 bitboard 行式实现
+ *  每行 = 16bit，每 4bit 存一个“指数 e”（格子值 = 2^e，0 表示空）
+ * ================================================================ */
+var TAG_OF = ['','CE','JG','RE','TLE','MLE','ILE','OLE','UKE','WA','PC','AC','PE','DOJ','SJE','AK'];
+var PAL = [null,
+  ['#eee4da','#776e65'],['#ede0c8','#776e65'],['#f2b179','#fff7f0'],['#f59563','#fff7f0'],
+  ['#f67c5f','#fff7f0'],['#f65e3b','#fff7f0'],['#edcf72','#fffaf0'],['#edcc61','#fffaf0'],
+  ['#edc850','#fffaf0'],['#edc53f','#fffaf0'],['#edc22e','#fff8e0'],
+  ['#3f3b55','#ffd76a'],['#35304b','#ffd76a'],['#2b2740','#ffe08a'],['#201d34','#ffeaa8']];
+var AKIOI_DEFS = [
+  ['CE','Compiler Excellent'],['RE','Runs Excellent'],['TLE','Time Limit Enough'],['MLE','Memory Limit Enough'],
+  ['ILE','Idleness Limit Enough'],['OLE','Output Limit Enough'],['UKE','Understand Knowledge Easily'],
+  ['WA','Wonderful Answer'],['PC','Partially CE'],['AC','Awful Compiler'],['PE','Physical Exercise'],
+  ['DOJ','Duck Or Jump'],['SJE','Simple Judge Exit'],['AU','All Understood'],['AK','All Killed']];
+var DIRNAME = ['上','下','左','右'];
+var THRESH = 0.00001, CACHE_DEP = 15, SAMPLE_K = 3;
+
+var tabL, tabR, tabHeur, tabRev;   // 65536 预计算表
+var ABORT = {abort:true};
+
+function initTables(){
+  tabL = new Uint16Array(65536);
+  tabR = new Uint16Array(65536);
+  tabRev = new Uint16Array(65536);
+  tabHeur = new Float64Array(65536);
+  var p4 = [], p35 = [];
+  for (var i=0;i<16;i++){ p4.push(Math.pow(i,4)); p35.push(Math.pow(i,3.5)); }
+  for (var row=0; row<65536; row++){
+    var ln=[ (row>>0)&15, (row>>4)&15, (row>>8)&15, (row>>12)&15 ];
+    // —— 启发式单项（模仿原版权重：空格270 · 合并700 · 单调-47 · 总和-11）——
+    var sum=0, empty=0, merges=0, prev=0, counter=0;
+    for (i=0;i<4;i++){
+      var rk=ln[i]; sum += p35[rk];
+      if (rk===0) empty++;
+      else { if (prev===rk) counter++; else if (counter>0){ merges += 1+counter; counter=0; } prev=rk; }
+    }
+    if (counter>0) merges += 1+counter;
+    var ml=0, mr=0;
+    for (i=1;i<4;i++){
+      if (ln[i-1]>ln[i]) ml += p4[ln[i-1]]-p4[ln[i]];
+      else mr += p4[ln[i]]-p4[ln[i-1]];
+    }
+    // —— 启发式逐行表：完全照抄 C++ 公式（含 200000/行 保底常数）——
+    // score = 200000 + 270*空 + 700*合并 - 47*min(左/右单调) - 11*Σrank^3.5
+    tabHeur[row] = 200000 + 270*empty + 700*merges - 47*Math.min(ml,mr) - 11*sum;
+    // —— 向左塌缩+合并 ——
+    var work = ln.slice();
+    for (i=0;i<3;i++){
+      var j;
+      for (j=i+1;j<4;j++) if (work[j]!==0) break;
+      if (j===4) break;
+      if (work[i]===0){ work[i]=work[j]; work[j]=0; i--; }
+      else if (work[i]===work[j]){ if (work[i]!==15) work[i]++; work[j]=0; }
+    }
+    var res = work[0] | (work[1]<<4) | (work[2]<<8) | (work[3]<<12);
+    var revRow = ((row>>12)&15) | (((row>>8)&15)<<4) | (((row>>4)&15)<<8) | ((row&15)<<12);
+    var resRev = ((res>>12)&15) | (((res>>8)&15)<<4) | (((res>>4)&15)<<8) | ((res&15)<<12);
+    tabRev[row] = revRow;
+    tabL[row] = res;
+  }
+  for (row=0; row<65536; row++){
+    var rr = tabRev[row];
+    tabR[row] = tabRev[ tabL[ rr ] ];
+  }
+}
+
+function newRows(){ return [0,0,0,0]; }
+function nibbleAt(rows,r,c){ return (rows[r] >>> (c*4)) & 15; }
+function setNibble(rows,r,c,e){ rows[r] = (rows[r] & ~(15 << (c*4))) | (e << (c*4)); }
+function rowsCopy(a){ return [a[0],a[1],a[2],a[3]]; }
+function transposeRows(rows){
+  var o=[0,0,0,0], i;
+  for (i=0;i<4;i++){
+    o[i] = ((rows[0]>>> (i*4))&15) | (((rows[1]>>>(i*4))&15)<<4) | (((rows[2]>>>(i*4))&15)<<8) | (((rows[3]>>>(i*4))&15)<<12);
+  }
+  return o;
+}
+function expsFromRows(rows){ var a=[]; for(var r=0;r<4;r++) for(var c=0;c<4;c++) a.push(nibbleAt(rows,r,c)); return a; }
+function rowsFromExps(a){ var rows=newRows(); for(var i=0;i<16;i++) if(a[i]) setNibble(rows,i>>2,i&3,a[i]); return rows; }
+
+// 返回新行数组；若该方向完全没变化则返回 null
+function applyMoveRows(rows,dir){
+  var nr = rowsCopy(rows), changed=false, i;
+  if (dir===2){ for(i=0;i<4;i++){ var v=tabL[nr[i]]; if(v!==nr[i])changed=true; nr[i]=v; } }
+  else if (dir===3){ for(i=0;i<4;i++){ var w=tabR[nr[i]]; if(w!==nr[i])changed=true; nr[i]=w; } }
+  else {
+    var t=transposeRows(rows);
+    for(i=0;i<4;i++){ var x = dir===0 ? tabL[t[i]] : tabR[t[i]]; if(x!==t[i])changed=true; t[i]=x; }
+    nr = transposeRows(t);
+  }
+  return changed ? nr : null;
+}
+function hasAnyMove(rows){ for(var d=0;d<4;d++) if(applyMoveRows(rows,d)) return true; return false; }
+function hasAK(rows){ for(var r=0;r<4;r++){ if((rows[r]&0xF)===15||((rows[r]>>4)&0xF)===15||((rows[r]>>8)&0xF)===15||((rows[r]>>12)&0xF)===15) return true;} return false; }
+function countEmpty(rows){ var n=0; for(var r=0;r<4;r++){ var x=rows[r]; for(var c=0;c<4;c++) if(((x>>(c*4))&15)===0) n++; } return n; }
+function countDistinct(rows){
+  var bits=0, x;
+  for(var r=0;r<4;r++){ x=rows[r]; for(var c=0;c<4;c++) bits |= 1 << ((x>>(c*4))&15); }
+  bits >>= 1; var n=0; while(bits){ bits &= bits-1; n++; } return n;
+}
+function placeRandom(rows){
+  var cells=[];
+  for(var r=0;r<4;r++) for(var c=0;c<4;c++) if(nibbleAt(rows,r,c)===0) cells.push(r*4+c);
+  if(!cells.length) return false;
+  var idx=cells[(Math.random()*cells.length)|0];
+  setNibble(rows, idx>>2, idx&3, Math.random()<0.9 ? 1 : 2);
+  return true;
+}
+function freshBoard(){
+  var rows=newRows();
+  placeRandom(rows); placeRandom(rows);
+  return rows;
+}
+/* —— 启发式评分：与原 C++ 完全一致 ——
+ * 对 4 行与 4 列（转置后）分别查预计算表求和 */
+function heurBoard(rows){
+  var s = tabHeur[rows[0]]+tabHeur[rows[1]]+tabHeur[rows[2]]+tabHeur[rows[3]];
+  var t=transposeRows(rows);
+  return s + tabHeur[t[0]]+tabHeur[t[1]]+tabHeur[t[2]]+tabHeur[t[3]];
+}
+
+/* ---------------- Expectimax AI：C++ 原逻辑 1:1 移植 + 迭代加深 ----------------
+ * 评分与搜索规则逐条同 C++：best=0f 输局语义、启发式 200000/行 保底、
+ * 概率剪枝 1e-4、90%/10% 加权、/num_open 归一、depth<15 置换表、
+ * 深度上限 max(3, distinct-2)、原权重与幂次（initTables）。
+ * JS 侧差异仅限“性能等价”：
+ *  1) 候选方向按启发式快评排序（不改变正确性，只改善预算内的收敛顺序）；
+ *  2) 迭代加深：从浅到深逐层完整算完，预算到点就采用“最后完整算完的那一层”。
+ *     它从不采用“算了一半”的结论——这点比 C++ 的一次性深搜更抗截断。
+ * budgetMs 越大越接近 C++ 的完整搜索；两档差距主要在给搜索的时间。 */
+function aiThinkRows(rows, budgetMs){
+  var limit = Math.max(3, countDistinct(rows)-2);
+  var nowFn = (typeof performance!=='undefined'&&performance.now) ? function(){ return performance.now(); } : function(){ return Date.now(); };
+  var dead = nowFn() + (budgetMs||2000);
+  var cands=[];
+  for (var m=0;m<4;m++){
+    var nb0=applyMoveRows(rows,m);
+    if (nb0) cands.push([m, heurBoard(nb0)]);
+  }
+  if (!cands.length) return -1;
+  cands.sort(function(a,b){ return b[1]-a[1]; });
+  var fallback = cands[0][0];
+
+  // 一次性把深度 D 完整算完；算不完（超预算）则抛 ABORT，由外层丢弃该层
+  function searchDepth(D){
+    var cache=new Map(), nodes=0;
+    function budgetChk(){
+      if ((nodes++ & 2047)===0 && nowFn()>dead) throw ABORT;
+    }
+    function tileChoose(bd, cp, d){     // d 对应 C++ 的 curdepth
+      budgetChk();
+      if (cp<0.0001 || d>=D) return heurBoard(bd);
+      var k0=bd[0]*65536+bd[1], k1=bd[2]*65536+bd[3], m1=null;
+      if (d<15){
+        m1=cache.get(k0);
+        if (m1){
+          var en=m1.get(k1);
+          if (en && en.d<=d) return en.h;
+        }
+      }
+      var open=countEmpty(bd);
+      if (open===0) return heurBoard(bd);
+      var cp0=cp/open, res=0;
+      for (var r=0;r<4;r++){
+        var row=bd[r];
+        for (var c=0;c<4;c++){
+          if (((row>>>(c*4))&15)!==0) continue;
+          var b2=rowsCopy(bd); setNibble(b2,r,c,1);
+          var b4=rowsCopy(bd); setNibble(b4,r,c,2);
+          res += moveNode(b2, cp0*0.9, d) * 0.9;
+          res += moveNode(b4, cp0*0.1, d) * 0.1;
+        }
+      }
+      res /= open;
+      if (d<15){
+        if (!m1){ m1=new Map(); cache.set(k0,m1); }
+        m1.set(k1, {d:d, h:res});
+      }
+      return res;
+    }
+    function moveNode(bd, cp, d){
+      var best=0;      // 原版语义：无可走方向/全负分支即“输局”
+      for (var mv=0; mv<4; mv++){
+        var nb=applyMoveRows(bd,mv);
+        if (!nb) continue;
+        var v=tileChoose(nb, cp, d+1);
+        if (v>best) best=v;
+      }
+      return best;
+    }
+    return cands.map(function(c){ return tileChoose(applyMoveRows(rows,c[0]), 1.0, 0); });
+  }
+
+  var bestMove = fallback;
+  for (var D=1; D<=limit; D++){
+    var scores;
+    try {
+      scores = searchDepth(D);
+    } catch(e){
+      if (e!==ABORT) throw e;
+      break;                       // 该层没算完 → 沿用上一层完整结论
+    }
+    var bi=0, bs=scores[0];
+    for (var i=1;i<scores.length;i++){ if (scores[i]>bs){ bs=scores[i]; bi=i; } }
+    bestMove = cands[bi][0];
+  }
+  return bestMove;
+}
+
+/* ================================================================
+ *  应用层（DOM）—— 仅在浏览器中初始化
+ * ================================================================ */
+if (typeof window!=='undefined' && window.document){
+
+var $ = function(id){ return document.getElementById(id); };
+var G = { rows:null, score:0, over:false, mode:'manual', busy:false };
+var LAY = { cell:0, gap:10, bw:0 };
+var timers = [], tiles = [], slots = [], floats = [];
+var ai = { on:false, stepTimer:null, paused:false, speed:2, thinking:false, seq:0, str:1 };
+var prefs = { oi:true, aiStr:1 };
+var uiMode = 'menu';
+
+var LS_GAME='wb2048.game.v1', LS_BEST='wb2048.best.v1', LS_PREF='wb2048.pref.v1';
+var SPEEDS=[1100,620,340,190,95];
+var SPEED_LB=['慢','较慢','正常','快','极快'];
+// AI 强度三档：单步时间预算（毫秒）——预算只截断搜索，不改变 C++ 决策规则
+var AI_BUDGETS=[600, 2000, 6000];
+var AI_LB=['快速','标准','全力'];
+
+function loadPref(){ try{ var o=JSON.parse(localStorage.getItem(LS_PREF)); if(o) prefs=Object.assign(prefs,o);}catch(e){} }
+function savePref(){ try{ localStorage.setItem(LS_PREF, JSON.stringify(prefs)); }catch(e){} }
+function bestScore(){ var v=0; try{ v=parseInt(localStorage.getItem(LS_BEST)||'0',10)||0; }catch(e){} return v; }
+function saveBest(){ try{ localStorage.setItem(LS_BEST, String(bestScore())); }catch(e){} }
+function saveGame(){
+  if (G.mode!=='manual' || !G.rows || G.over) return;
+  try{ localStorage.setItem(LS_GAME, JSON.stringify({rows:G.rows, score:G.score, ts:Date.now()})); }catch(e){}
+}
+function hasSave(){ try{ return !!localStorage.getItem(LS_GAME); }catch(e){ return false; } }
+function clearSave(){ try{ localStorage.removeItem(LS_GAME); }catch(e){} }
+function loadSave(){
+  try{ var o=JSON.parse(localStorage.getItem(LS_GAME)); if(o&&o.rows&&o.rows.length===4){ G.rows=o.rows.slice().map(function(x){return x|0;}); G.score=o.score|0||0; return true; } }catch(e){}
+  return false;
+}
+
+/* ---------- 提示 / 模态 ---------- */
+function toast(msg){
+  var box=$('toasts'), t=document.createElement('div');
+  t.className='toast'; t.textContent=msg; box.appendChild(t);
+  setTimeout(function(){ t.classList.add('out'); setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); },320); }, 2200);
+}
+function openModal(html, onClose){
+  var root=$('modalRoot');
+  root.innerHTML='<div class="modal">'+html+'</div>';
+  root.hidden=false;
+  if (onClose) root.querySelectorAll('[data-close]').forEach(function(b){ b.addEventListener('click', function(){ closeModal(); onClose(); }); });
+}
+function closeModal(){ $('modalRoot').hidden=true; $('modalRoot').innerHTML=''; }
+function later(fn,ms){ timers.push(setTimeout(fn,ms)); }
+function clearTimers(){ timers.forEach(clearTimeout); timers=[]; }
+
+/* ---------- 页面切换 ---------- */
+function showPage(name){
+  uiMode=name;
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  $('page-'+name).classList.add('active');
+  if (name==='game'){ layoutBoard(); }
+  if (name==='akioi'){ akStartFlash(); } else { akStopFlash(); }
+  if (name!=='game'){ stopAI(); }
+  window.scrollTo(0,0);
+}
+function goMenu(){ clearTimers(); showPage('menu'); updateMenuBest(); }
+
+/* ---------- 游戏搭建 / 渲染 ---------- */
+function buildBoardDOM(){
+  var bd=$('board'); bd.innerHTML='';
+  slots=[]; tiles=[]; floats=[];
+  for (var i=0;i<16;i++){
+    var s=document.createElement('div'); s.className='slot'; bd.appendChild(s); slots.push(s);
+    var t=document.createElement('div'); t.className='tile off';
+    t.innerHTML='<div class="tb"><span class="main"></span><span class="sub"></span></div>';
+    bd.appendChild(t); tiles.push(t);
+  }
+}
+function layoutBoard(){
+  var bd=$('board');
+  if (!bd || uiMode!=='game') return;
+  var w = bd.parentElement.clientWidth || 380;
+  LAY.bw = Math.min(w, 470);
+  LAY.gap = Math.max(8, Math.min(12, LAY.bw*0.028));
+  LAY.cell = (LAY.bw - 3*LAY.gap)/4;
+  bd.style.width=LAY.bw+'px';
+  var all=tiles.concat(slots);
+  for (var i=0;i<all.length;i++){
+    var x=i&3, y=(i>>2)&3;
+    var tr='translate('+(x*(LAY.cell+LAY.gap)).toFixed(1)+'px,'+(y*(LAY.cell+LAY.gap)).toFixed(1)+'px)';
+    all[i].style.transform=tr;
+    all[i].style.width=LAY.cell+'px';
+    all[i].style.height=LAY.cell+'px';
+    if (i<16) styleTileFont(tiles[i], G.rows ? nibbleAt(G.rows,i>>2,i&3) : 0, true);
+  }
+}
+function styleTileFont(tile, e, force){
+  var main = tile.querySelector('.main'), sub = tile.querySelector('.sub');
+  if (!force && tile._e===e) return;
+  tile._e=e;
+  if (!e){ tile.classList.add('off'); return; }
+  tile.classList.remove('off');
+  var pal=PAL[e]||['#3f3b55','#fff'];
+  var tb=tile.querySelector('.tb');
+  tb.style.background=pal[0];
+  tb.style.color=pal[1];
+  var val=1<<e, tag=TAG_OF[e]||'';
+  var oi = prefs.oi;
+  var bigTxt = oi? tag : String(val);
+  var smTxt  = oi? String(val) : tag;
+  var bigLen = bigTxt.length, smallLen = smTxt.length;
+  var fs = LAY.cell * (oi ? (bigLen<=2?0.46:0.34) : (bigLen<=2?0.44 : bigLen<=3?0.38 : bigLen<=4?0.3:0.24));
+  main.textContent=bigTxt; main.style.fontSize=fs+'px';
+  if (smallLen){ sub.textContent=smTxt; sub.style.display=''; sub.style.fontSize=LAY.cell*0.17+'px'; }
+  else sub.style.display='none';
+  tile.classList.toggle('glow', e>=12);
+}
+function syncTiles(){
+  for (var i=0;i<16;i++) styleTileFont(tiles[i], nibbleAt(G.rows,i>>2,i&3), true);
+}
+function clearTileAnims(){
+  for (var i=0;i<16;i++){ tiles[i].classList.remove('merge','slide','spawn'); }
+}
+
+/* 格子动画分析：把一个方向移动解析成“哪些块去哪、哪些发生合并” */
+function planMove(rows, dir){
+  var nr = applyMoveRows(rows, dir);
+  if (!nr) return { changed:false };
+  var exps = expsFromRows(rows), events=[], track, i, t;
+  function trackCells(d,t){
+    var arr=[];
+    if (d===2) for (var c=0;c<4;c++) arr.push({x:c,y:t});
+    else if (d===3) for (c=3;c>=0;c--) arr.push({x:c,y:t});
+    else if (d===0) for (var r2=0;r2<4;r2++) arr.push({x:t,y:r2});
+    else for (r2=3;r2>=0;r2--) arr.push({x:t,y:r2});
+    return arr;
+  }
+  function targetAt(d,t,k){
+    if (d===2) return {x:k,y:t}; if (d===3) return {x:3-k,y:t};
+    if (d===0) return {x:t,y:k}; return {x:t,y:3-k};
+  }
+  var gain=0;
+  for (t=0;t<4;t++){
+    var cells = trackCells(dir,t), chain=[];
+    for (i=0;i<4;i++){ var p=cells[i]; var e2 = exps[p.y*4+p.x]; if (e2>0) chain.push({p:p,e:e2}); }
+    var idx=0, k=0;
+    while (idx<chain.length){
+      var a=chain[idx], tg=targetAt(dir,t,k); k++;
+      if (idx+1<chain.length && chain[idx+1].e===a.e && a.e<15){
+        var b=chain[idx+1];
+        events.push({type:'m', from:[a.p,b.p], to:tg, e:a.e+1});
+        gain += 1 << (a.e+1);
+        idx+=2;
+      } else {
+        events.push({type:'s', from:[a.p], to:tg, e:a.e});
+        idx++;
+      }
+    }
+  }
+  return { changed:true, rows:nr, events:events, gain:gain };
+}
+
+function makeFloat(x,y,e){
+  var bd=$('board'), f=document.createElement('div');
+  f.className='float-tile';
+  var pal=PAL[e]||['#3f3b55','#fff'];
+  f.innerHTML='<div class="tb" style="background:'+pal[0]+';color:'+pal[1]+';"><span class="main" style="font-size:'+(LAY.cell*0.44)+'px">'+(prefs.oi?(TAG_OF[e]||''):(1<<e))+'</span>'+
+    '<span class="sub" style="font-size:'+(LAY.cell*0.17)+'px">'+(prefs.oi?(1<<e):(TAG_OF[e]||''))+'</span></div>';
+  f.style.width=LAY.cell+'px'; f.style.height=LAY.cell+'px';
+  f.style.transform='translate('+(x*(LAY.cell+LAY.gap))+'px,'+(y*(LAY.cell+LAY.gap))+'px)';
+  f.style.transition='transform 0.13s ease-out';
+  bd.appendChild(f); floats.push(f);
+  return f;
+}
+
+/* 提交一次方向移动（手动 / AI 共用），返回是否有效 */
+function commitMove(dir){
+  if (G.busy || G.over) return false;
+  var plan = planMove(G.rows, dir);
+  if (!plan.changed){
+    if (G.mode==='manual'){ var bd=$('board'); bd.classList.remove('board-shake'); void bd.offsetWidth; bd.classList.add('board-shake'); }
+    return false;
+  }
+  G.busy = true;
+  var oldRows = rowsCopy(G.rows);
+  var evMap = {};            // 目标格子 idx -> 类型
+  plan.events.forEach(function(ev){
+    var ti = ev.to.y*4+ev.to.x;
+    if (ev.type==='m'){ evMap[ti]='merge'; }
+    else if (ev.from.length===1 && ev.from[0].x===ev.to.x && ev.from[0].y===ev.to.y){ /* 原地未动，不加动画类 */ }
+    else evMap[ti]='slide';
+  });
+  // 权威落子（表驱动结果）
+  var after = applyMoveRows(oldRows, dir);
+  G.rows = after ? after : plan.rows;
+  // 随机生成新块（90% 2 / 10% 4）
+  var spawnAt=-1, spawnE=0;
+  var empties=[];
+  for (var i=0;i<16;i++) if (nibbleAt(G.rows,i>>2,i&3)===0) empties.push(i);
+  if (empties.length){
+    spawnAt = empties[(Math.random()*empties.length)|0];
+    spawnE = Math.random()<0.9 ? 1 : 2;
+    setNibble(G.rows, spawnAt>>2, spawnAt&3, spawnE);
+    evMap[spawnAt]='spawn';
+  }
+  G.score += plan.gain;
+  // —— 落盘 + 动效 ——
+  clearTileAnims();
+  for (var k in evMap) if (evMap.hasOwnProperty(k)) tiles[k].classList.add(evMap[k]);
+  syncTiles();
+  // 滑动浮层
+  plan.events.forEach(function(ev){
+    var tx=ev.to.x, ty=ev.to.y;
+    ev.from.forEach(function(fp, fi){
+      var needSlide = !(fp.x===tx && fp.y===ty);
+      if (ev.type==='m' || needSlide){
+        var f=makeFloat(fp.x, fp.y, ev.e);
+        (function(f,ev){
+          requestAnimationFrame(function(){
+            requestAnimationFrame(function(){
+              f.style.transform='translate('+(tx*(LAY.cell+LAY.gap))+'px,'+(ty*(LAY.cell+LAY.gap))+'px)';
+            });
+          });
+        })(f,ev);
+      }
+    });
+  });
+  later(function(){ floats.forEach(function(f){ if(f.parentNode) f.parentNode.removeChild(f); }); floats=[]; }, 170);
+  // 结算：解锁 + 记分 + 存档 + 结局检查
+  later(function(){
+    G.busy=false;
+    updateScoreUI();
+    if (G.mode==='manual'){ saveGame(); }
+    endCheck();
+  }, 320);
+  return true;
+}
+function updateScoreUI(){
+  $('scoreVal').textContent = String(G.score);
+  var b=bestScore();
+  if (G.score>b){ localStorage.setItem(LS_BEST,String(G.score)); b=G.score; }
+  $('bestVal').textContent=String(b);
+}
+function endCheck(){
+  if (G.over) return;
+  if (hasAK(G.rows)){ endAK(); return; }
+  if (!hasAnyMove(G.rows)){ endGameOver(); }
+}
+function endAK(){
+  G.over=true; stopAI();
+  saveBest(); if (G.mode==='manual') clearSave();
+  openModal(
+    '<div class="big-end"><div class="eb">You AK IOI!</div>'+
+    '<div class="es">合出了 32768（AK）—— 神判！<br>本局得分 <b style="color:#fff">'+G.score+'</b></div></div>'+
+    '<div class="actions" style="margin-top:18px">'+
+    '<button class="btn btn-primary" data-close="1" data-new="1">再 AK 一局</button>'+
+    '<button class="btn" data-close="1" data-menu="1">返回主菜单</button></div>',
+    function(){});
+  var root=$('modalRoot');
+  var nb=root.querySelector('[data-new]');
+  if (nb) nb.addEventListener('click', function(){ startManual('new'); });
+}
+function endGameOver(){
+  G.over=true; stopAI();
+  saveBest(); if (G.mode==='manual') clearSave();
+  var extra = G.mode==='ai' ? '<br><small style="color:#6b7399">AI 把能走的都走完了</small>' : '';
+  openModal(
+    '<div class="big-end"><div class="eb" style="font-size:40px">Game Over</div>'+
+    '<div class="es">没有可以合并或移动的格子了。<br>本局得分 <b style="color:#fff">'+G.score+'</b>'+extra+'</div></div>'+
+    '<div class="actions" style="margin-top:18px">'+
+    '<button class="btn btn-primary" data-close="1" data-new="1">再来一局</button>'+
+    '<button class="btn" data-close="1" data-menu="1">返回主菜单</button></div>',
+    function(){});
+  var nb=root.querySelector('[data-new]');
+  if (nb) nb.addEventListener('click', function(){ G.mode==='ai' ? startAI() : startManual('new'); });
+}
+
+/* ---------- 开局 ---------- */
+function resetGame(mode){
+  clearTimers(); clearTileAnims(); floats.forEach(function(f){ if(f.parentNode)f.parentNode.removeChild(f); }); floats=[];
+  G.rows=freshBoard(); G.score=0; G.over=false; G.busy=false; G.mode=mode;
+  stopAI();
+  syncTiles(); updateScoreUI();
+  setModeUI();
+}
+function startManual(kind){
+  if (kind==='continue'){
+    if (!loadSave()){ toast('没有可用的游戏存档'); return; }
+  } else if (kind==='custom'){
+    openCustomModal(); return;
+  } else {
+    G.rows=freshBoard(); G.score=0;
+  }
+  G.over=false; G.busy=false; G.mode='manual'; G.rows=G.rows||freshBoard();
+  stopAI();
+  clearTileAnims();
+  floats.forEach(function(f){ if(f.parentNode) f.parentNode.removeChild(f); }); floats=[];
+  showPage('game'); layoutBoard(); syncTiles(); updateScoreUI(); setModeUI();
+  saveGame();
+}
+function startAI(){
+  G.rows=freshBoard(); G.score=0; G.over=false; G.busy=false; G.mode='ai';
+  stopAI();
+  clearTileAnims();
+  floats.forEach(function(f){ if(f.parentNode) f.parentNode.removeChild(f); }); floats=[];
+  showPage('game'); layoutBoard(); syncTiles(); updateScoreUI(); setModeUI();
+  aiRun();
+}
+function aiRun(){
+  ai.on=true; ai.thinking=false;
+  if (ai.stepTimer) clearTimeout(ai.stepTimer);
+  ai.stepTimer=null;
+  renderCtrlPanel();
+  aiTick();
+}
+function setModeUI(){
+  $('modePill').textContent = G.mode==='manual' ? '手动模式' : 'AI 托管';
+  $('modePill').className='mode-pill '+(G.mode==='manual'?'manual':'ai');
+  renderCtrlPanel();
+}
+
+/* ---------- AI 托管 ---------- */
+function stopAI(){ ai.on=false; ai.thinking=false; if(ai.stepTimer) clearTimeout(ai.stepTimer); ai.stepTimer=null; renderCtrlPanel(); }
+function aiPause(){ ai.on=false; if(ai.stepTimer) clearTimeout(ai.stepTimer); ai.stepTimer=null; renderCtrlPanel(); }
+function aiResume(){
+  if (G.over) return;
+  ai.on=true; renderCtrlPanel();
+  if (!ai.stepTimer) aiTick();
+}
+function aiPauseToggle(){
+  if (ai.on) aiPause(); else aiResume();
+}
+function aiStepOnce(){
+  if (G.over || G.busy || G.mode!=='ai') return;
+  aiPause();
+  var mv=aiThinkRows(G.rows, AI_BUDGETS[ai.str]||320);
+  if (G.over) return;
+  if (mv<0){ toast('AI 找不到可走的方向'); return; }
+  commitMove(mv);
+}
+function aiTick(){
+  ai.stepTimer=null;
+  if (!ai.on || G.over || G.mode!=='ai') return;
+  if (G.busy){ ai.stepTimer=setTimeout(function(){ if (ai.on) aiTick(); }, 150); return; }
+  ai.thinking=true; renderCtrlPanel();
+  // 先让“思考中…”状态绘制出来，再同步执行搜索
+  setTimeout(function(){ if (ai.on && !G.over && !G.busy) aiDoStep(); }, 30);
+}
+function aiDoStep(){
+  if (!ai.on || G.over || G.busy || G.mode!=='ai') return;
+  var mv=aiThinkRows(G.rows, AI_BUDGETS[ai.str]||320);
+  ai.thinking=false;
+  if (G.over){ return; }
+  if (mv<0){ aiPause(); toast('AI 找不到可走的方向'); return; }
+  commitMove(mv);
+  var delay=SPEEDS[ai.speed]||340;
+  ai.stepTimer=setTimeout(function(){ if (ai.on) aiTick(); }, delay);
+}
+
+/* ---------- 控制面板 ---------- */
+function renderCtrlPanel(){
+  var cp=$('ctrlPanel'), html='';
+  if (G.mode==='manual'){
+    html += '<div class="ctrl-row">'+
+      '<span class="seg" id="segDisp">'+
+        '<button data-cmd="oi" class="'+(prefs.oi?'on':'')+'">OI 梗</button>'+
+        '<button data-cmd="num" class="'+(prefs.oi?'':'on')+'">数字</button>'+
+      '</span>'+
+      '<span class="spacer"></span>'+
+      '<button class="btn btn-sm" data-cmd="custom">自定义棋盘</button>'+
+      '<button class="btn btn-sm btn-primary" data-cmd="new">重新开局</button>'+
+      '</div>';
+  } else {
+    var running = ai.on && !ai.thinking;
+    var st = ai.thinking ? '思考中…' : (ai.on ? '运行中' : (G.over ? '已结束' : '已暂停'));
+    html += '<div class="ctrl-row">'+
+      '<span style="color:var(--dim);font-size:12px">强度</span>'+
+      '<span class="seg" id="segStr">'+
+        '<button data-cmd="s0" class="'+(ai.str===0?'on':'')+'">快速</button>'+
+        '<button data-cmd="s1" class="'+(ai.str===1?'on':'')+'">标准</button>'+
+        '<button data-cmd="s2" class="'+(ai.str===2?'on':'')+'">全力</button>'+
+      '</span>'+
+      '<span class="spacer"></span>'+
+      '<button class="btn btn-sm" data-cmd="step" '+(ai.on?'disabled':'')+'>单步</button>'+
+      '<button class="btn btn-sm '+(running?'':'btn-primary')+'" data-cmd="toggle">'+(ai.on?'暂停':'继续')+'</button>'+
+      '<button class="btn btn-sm btn-danger" data-cmd="stopai">结束</button>'+
+      '</div>'+
+      '<div class="ctrl-row">'+
+      '<div class="speed-box"><label for="aiSpeed">速度</label>'+
+      '<input type="range" id="aiSpeed" min="0" max="4" value="'+(ai.speed||2)+'">'+
+      '<span class="val" id="speedLb">'+(SPEED_LB[ai.speed]||'正常')+'</span></div>'+
+      '<span class="spacer"></span>'+
+      '<span style="font-size:11.5px;color:var(--dim)" id="strNote">原版 Expectimax · 单步上限 '+(AI_BUDGETS[ai.str]||2000)+'ms（越大越接近 C++ 完整搜索）</span>'+
+      '</div>';
+  }
+  html += '<div class="hint-line">'+(G.mode==='manual'
+      ? '<span>方向键 / WASD / 滑动 / 下方按钮控制</span>'
+      : '<span>状态：<b style="color:#b9afff">'+st+'</b></span><span style="color:#454b6e">·</span><span>AI 每一步都经过完整的搜索决策</span>')+'</div>';
+  cp.innerHTML=html;
+}
+
+/* ---------- AI 结束确认 ---------- */
+function askStopAI(){
+  openModal(
+    '<h3>结束这局 AI 托管？</h3><p>AI 的对局不会写入「手动模式」的存档，可直接放心结束。</p>'+
+    '<div class="actions"><button class="btn btn-primary" data-close data-cnf="stopai">结束并返回</button>'+
+    '<button class="btn" data-close>继续观战</button></div>', function(){});
+  var root=$('modalRoot');
+  var b=root.querySelector('[data-cnf="stopai"]');
+  if (b) b.addEventListener('click', function(){ goMenu(); });
+}
+function askResetManual(){
+  openModal(
+    '<h3>重新开局？</h3><p>当前手动进度会被清空，已保存的读档也会重置为新的一局。</p>'+
+    '<div class="actions"><button class="btn btn-primary" data-close data-cnf="reset">重新开局</button>'+
+    '<button class="btn" data-close>取消</button></div>', function(){});
+  var root=$('modalRoot');
+  var b=root.querySelector('[data-cnf="reset"]');
+  if (b) b.addEventListener('click', function(){ startManual('new'); });
+}
+
+/* ---------- 手动模式入口对话框 ---------- */
+function openStartModal(){
+  var can = hasSave();
+  openModal(
+    '<h3>开始手动模式</h3>'+
+    '<div class="start-cards">'+
+    '<button class="start-card" data-start="new"><span class="st">新游戏<small>随机生成 2 个初始方块</small></span></button>'+
+    '<button class="start-card'+(can?'':' disabled')+'" data-start="continue"><span class="st">继续游戏<small>'+(can?'读取上次自动保存的进度':'暂无存档')+'</small></span></button>'+
+    '<button class="start-card" data-start="custom"><span class="st">自定义棋盘<small>输入 4×4 个 2 的幂，构造残局</small></span></button>'+
+    '</div>'+
+    '<div class="actions"><button class="btn" data-close>返回主菜单</button></div>', function(){});
+  var root=$('modalRoot');
+  root.querySelectorAll('[data-start]').forEach(function(b){
+    if (b.classList.contains('disabled')) return;
+    b.addEventListener('click', function(){
+      var kind=b.getAttribute('data-start');
+      closeModal();
+      if (kind==='new') startManual('new');
+      else if (kind==='continue') startManual('continue');
+      else startManual('custom');
+    });
+  });
+}
+/* ---------- 自定义棋盘 ---------- */
+function openCustomModal(){
+  openModal(
+    '<h3>自定义棋盘</h3><p>填入 0（空）或 2 的幂（2 / 4 / 8 … 32768）。可作为残局直接开打。</p>'+
+    '<div class="grid-16" id="custGrid">'+
+    Array.from({length:16},function(_,i){return '<input id="c'+i+'" inputmode="numeric" placeholder="0">';}).join('')+
+    '</div>'+
+    '<div class="actions" style="justify-content:space-between">'+
+    '<button class="btn btn-sm" data-cnf="crandom">随机</button>'+
+    '<button class="btn btn-sm" data-cnf="cclear">清空</button>'+
+    '<span class="spacer"></span>'+
+    '<button class="btn btn-sm" data-cnf="cfill">快速填满</button></div>'+
+    '<div class="actions" style="margin-top:12px"><button class="btn btn-primary" data-cnf="cok">开始</button>'+
+    '<button class="btn" data-close>取消</button></div>', function(){});
+  var root=$('modalRoot');
+  root.querySelector('[data-cnf="crandom"]').addEventListener('click', function(){
+    var r=freshBoard(); fillCust(r);
+  });
+  root.querySelector('[data-cnf="cclear"]').addEventListener('click', function(){ fillCust(newRows()); });
+  root.querySelector('[data-cnf="cfill"]').addEventListener('click', function(){
+    var r=newRows(); var pool=[1,1,1,2,2,3,3,4,5,6];
+    for (var i=0;i<16;i++) setNibble(r,i>>2,i&3,pool[(Math.random()*pool.length)|0]);
+    fillCust(r);
+  });
+  root.querySelector('[data-cnf="cok"]').addEventListener('click', function(){
+    var exps=[], bad=false;
+    for (var i=0;i<16;i++){
+      var v=parseInt(root.querySelector('#c'+i).value,10);
+      if (isNaN(v)||v<0){ bad=true; break; }
+      if (v===0){ exps.push(0); continue; }
+      var e=Math.round(Math.log2(v));
+      if (e<1||e>15||(1<<e)!==v){ bad=true; break; }
+      exps.push(e);
+    }
+    if (bad){ toast('请输入 0 或 2 的幂（最大 32768）'); return; }
+    var rows=rowsFromExps(exps), cnt=0;
+    for (i=0;i<16;i++) if(exps[i]) cnt++;
+    if (cnt===0){ rows=freshBoard(); }
+    else if (!hasAnyMove(rows)){ toast('这个局面已经无法移动了'); return; }
+    G.rows=rows; G.score=0; G.over=false; G.busy=false; G.mode='manual';
+    stopAI();
+    closeModal();
+    showPage('game'); layoutBoard(); syncTiles(); updateScoreUI(); setModeUI();
+    saveGame();
+    endCheck();
+  });
+  function fillCust(rows){
+    var a=expsFromRows(rows);
+    for (var i=0;i<16;i++){
+      var el=root.querySelector('#c'+i);
+      el.value = a[i] ? String(1<<a[i]) : '';
+    }
+  }
+}
+function updateMenuBest(){
+  var b=bestScore();
+  var el=$('menuBest');
+  if (!el){ return; }
+  el.textContent = b>0 ? '本地最高分：'+b : '';
+}
+
+/* ---------- 梗图鉴 / AKIOI ---------- */
+function buildLegend(){
+  var wrap=$('legendGrid'), html='';
+  for (var e=1;e<16;e++){
+    var p=PAL[e];
+    html += '<div class="legend-item"><span class="legend-sq" style="background:'+p[0]+';color:'+p[1]+'">'+(1<<e)+'</span>'+
+      '<span><span class="lx">'+TAG_OF[e]+'</span><br><span class="lv">'+(1<<e)+'</span></span></div>';
+  }
+  wrap.innerHTML=html;
+}
+function buildAkGrid(){
+  var wrap=$('akGrid'), html='';
+  var cols=['#378add','#1D9E75','#BA7517','#993c1d','#534AB7','#993556','#854F0B','#185FA5','#639922','#D4537E','#0F6E56','#A32D2D'];
+  AKIOI_DEFS.forEach(function(d,i){
+    var c=cols[i%cols.length];
+    html += '<div class="ak-chip" style="border-color:'+c+'55"><b style="color:'+c+'">'+d[0]+'</b><span>'+d[1]+'</span></div>';
+  });
+  wrap.innerHTML=html;
+}
+var akTimer=null;
+function akStartFlash(){
+  if (akTimer) return;
+  var digits=[1,2,3,4,5,6,15,8,9,10,11,12,13,14,7];
+  var col={0:'#000000',1:'#0000a8',2:'#00a800',3:'#00a8a8',4:'#a80000',5:'#a800a8',6:'#a85400',7:'#a8a8a8',
+           8:'#545454',9:'#5454fc',10:'#54fc54',11:'#54fcfc',12:'#fc5454',13:'#fc54fc',14:'#fcfc54',15:'#fcfcfc'};
+  var i=0, page=$('page-akioi'), log=$('flashLog');
+  function step(){
+    var d=digits[i%digits.length]; i++;
+    page.style.background='linear-gradient(180deg,'+col[d]+'aa,'+col[d]+'55)';
+    log.innerHTML='<code>system("color 0'+d.toString(16)+'")</code>';
+  }
+  step();
+  akTimer=setInterval(step, 300);
+}
+function akStopFlash(){
+  if (akTimer){ clearInterval(akTimer); akTimer=null; }
+  var p=$('page-akioi');
+  if (p) p.style.background='';
+}
+
+/* ---------- 输入：键盘 / 触摸 / 方向按钮 ---------- */
+var KEYMAP={ArrowUp:0,ArrowDown:1,ArrowLeft:2,ArrowRight:3,w:0,s:1,a:2,d:3,W:0,S:1,A:2,D:3};
+var touchStart=null;
+function bindInputs(){
+  document.addEventListener('keydown', function(e){
+    var m=$('modalRoot');
+    if (!m.hidden){
+      if (e.key==='Escape'){ closeModal(); }
+      return;
+    }
+    if (uiMode!=='game') return;
+    if (e.key===' '){ e.preventDefault(); return; }
+    if (KEYMAP[e.key]!==undefined){
+      if (G.mode!=='manual'){ return; }
+      e.preventDefault();
+      commitMove(KEYMAP[e.key]);
+    }
+  });
+  var game=$('page-game');
+  game.addEventListener('touchstart', function(e){
+    var t=e.touches[0]; touchStart={x:t.clientX,y:t.clientY,id:t.identifier};
+  }, {passive:true});
+  game.addEventListener('touchend', function(e){
+    if (!touchStart) return;
+    var t=e.changedTouches[0];
+    var dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y;
+    touchStart=null;
+    if (Math.max(Math.abs(dx),Math.abs(dy))<24) return;
+    if (uiMode!=='game'||G.mode!=='manual'||G.over) return;
+    var dir=Math.abs(dx)>Math.abs(dy) ? (dx>0?3:2) : (dy>0?1:0);
+    commitMove(dir);
+  }, {passive:true});
+  $('dpad').addEventListener('click', function(e){
+    var b=e.target.closest('[data-dir]');
+    if (b && uiMode==='game' && G.mode==='manual') commitMove(parseInt(b.getAttribute('data-dir'),10));
+  });
+  $('ctrlPanel').addEventListener('click', function(e){
+    var b=e.target.closest('button');
+    if (!b) return;
+    var cmd=b.getAttribute('data-cmd');
+    if (!cmd) return;
+    if (cmd==='new') askResetManual();
+    else if (cmd==='custom') startManual('custom');
+    else if (cmd==='oi'){ prefs.oi=true; savePref(); renderCtrlPanel(); syncTiles(); }
+    else if (cmd==='num'){ prefs.oi=false; savePref(); renderCtrlPanel(); syncTiles(); }
+    else if (cmd==='s0'||cmd==='s1'||cmd==='s2'){ ai.str=parseInt(cmd.charAt(1),10); prefs.aiStr=ai.str; savePref(); renderCtrlPanel(); }
+    else if (cmd==='step') aiStepOnce();
+    else if (cmd==='toggle') aiPauseToggle();
+    else if (cmd==='stopai') askStopAI();
+  });
+  var spd=$('ctrlPanel');
+  spd.addEventListener('change', function(e){
+    if (e.target && e.target.id==='aiSpeed'){
+      ai.speed=parseInt(e.target.value,10);
+      var lb=document.getElementById('speedLb');
+      if (lb) lb.textContent=SPEED_LB[ai.speed];
+    }
+  });
+  spd.addEventListener('input', function(e){
+    if (e.target && e.target.id==='aiSpeed'){
+      ai.speed=parseInt(e.target.value,10);
+      var lb=document.getElementById('speedLb');
+      if (lb) lb.textContent=SPEED_LB[ai.speed];
+    }
+  });
+  window.addEventListener('resize', function(){ if (uiMode==='game'){ layoutBoard(); syncTiles(); } });
+}
+function bindMenus(){
+  document.querySelectorAll('[data-act]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var act=b.getAttribute('data-act');
+      if (act==='manual') openStartModal();
+      else if (act==='ai') startAI();
+      else if (act==='help') showPage('help');
+      else if (act==='akioi') showPage('akioi');
+    });
+  });
+  document.querySelectorAll('[data-back]').forEach(function(b){
+    b.addEventListener('click', goMenu);
+  });
+  $('btnHome').addEventListener('click', goMenu);
+  $('btnNew').addEventListener('click', function(){
+    if (G.mode==='ai') askStopAI(); else askResetManual();
+  });
+  $('btnReplayFlash').addEventListener('click', function(){ akStopFlash(); akStartFlash(); });
+  document.addEventListener('click', function(e){
+    var el=e.target.closest && e.target.closest('[data-menu]');
+    if (el){ closeModal(); goMenu(); }
+  });
+}
+
+/* ---------- 初始化 ---------- */
+function initAll(){
+  loadPref();
+  if (typeof prefs.aiStr==='number' && prefs.aiStr>=0 && prefs.aiStr<=2) ai.str=prefs.aiStr;
+  initTables();
+  buildLegend();
+  buildAkGrid();
+  G.rows=freshBoard();
+  buildBoardDOM();
+  bindInputs();
+  bindMenus();
+  var foot=document.querySelector('.menu-foot');
+  var mb=document.createElement('span');
+  mb.id='menuBest'; mb.style.cssText='display:block;color:#ffd76a;margin-top:6px;font-weight:600';
+  foot.appendChild(mb);
+  updateMenuBest();
+  renderCtrlPanel();
+  showPage('menu');
+}
+initAll();
+
+}
+</script>
+</body>
+</html>

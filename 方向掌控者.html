@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>方向掌控者 · Arrow Key Master</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#04060d;
+    --cyan:#4de3ff; --magenta:#ff2fd6; --yellow:#ffe14d;
+    --text:#e9f8ff; --dim:#7fa6b8;
+  }
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
+    font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--text);
+    user-select:none;-webkit-user-select:none}
+  #game{position:fixed;inset:0;display:block;background:#04060d;outline:none;touch-action:none}
+
+  .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    z-index:20;visibility:hidden;opacity:0;transition:opacity .45s ease,visibility .45s}
+  .screen.show{visibility:visible;opacity:1}
+  #menu{background:radial-gradient(ellipse at 50% 42%,rgba(18,42,78,.5),rgba(4,6,13,.93) 72%);
+    backdrop-filter:blur(2px)}
+  #over{background:rgba(2,3,8,.74);backdrop-filter:blur(3px)}
+
+  /* ---------- 主菜单 ---------- */
+  .logo{margin-bottom:20px}
+  h1{font-size:min(11vw,82px);letter-spacing:6px;text-align:center;line-height:1.06;
+    background:linear-gradient(180deg,#fff 8%,#9ff3ff 42%,#2f9bff 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 14px rgba(77,227,255,.75)) drop-shadow(0 0 34px rgba(255,47,214,.35));
+    font-weight:900;font-family:"Arial Black","Segoe UI",system-ui,sans-serif}
+  h1 .m{background:linear-gradient(180deg,#ffd9f6,#ff2fd6 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{margin:12px 0 24px;text-align:center;letter-spacing:9px;color:var(--cyan);
+    font-size:min(3.4vw,14px);text-shadow:0 0 10px rgba(77,227,255,.8)}
+  .diffs{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin-bottom:24px}
+  .dbtn{position:relative;min-width:156px;padding:16px 22px 12px;border:2px solid;border-radius:14px;
+    background:rgba(8,14,24,.8);cursor:pointer;font-family:inherit;text-align:center;
+    transition:transform .15s,box-shadow .15s}
+  .dbtn:hover{transform:translateY(-4px) scale(1.04)}
+  .dbtn .nm{font-size:26px;font-weight:800;letter-spacing:5px;display:block}
+  .dbtn .ds{font-size:12px;margin-top:6px;color:var(--dim);letter-spacing:1px;line-height:1.5}
+  .best{display:block;margin-top:8px;font-size:11px;letter-spacing:1px;color:var(--dim);
+    border-top:1px dashed rgba(255,255,255,.14);padding-top:6px}
+  #dbtnEasy{box-shadow:0 0 18px rgba(57,255,143,.22),inset 0 0 14px rgba(57,255,143,.07)}
+  #dbtnMed {box-shadow:0 0 18px rgba(255,197,49,.22),inset 0 0 14px rgba(255,197,49,.07)}
+  #dbtnHard{box-shadow:0 0 18px rgba(255,77,109,.26),inset 0 0 14px rgba(255,77,109,.07)}
+
+  .helpbox{border:1px solid rgba(77,227,255,.28);border-radius:16px;padding:16px 24px;max-width:620px;
+    background:rgba(8,16,30,.55);box-shadow:0 0 22px rgba(77,227,255,.08)}
+  .keys{display:flex;gap:28px;justify-content:center;flex-wrap:wrap;margin-bottom:12px}
+  .kcol{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:82px}
+  .kcap{font-size:12px;color:var(--dim);letter-spacing:1px}
+  .krow{display:flex;gap:6px}
+  .key{width:44px;height:44px;border:1.5px solid rgba(233,248,255,.55);border-radius:8px;display:flex;
+    align-items:center;justify-content:center;font-size:20px;color:#fff;background:linear-gradient(180deg,#1a2436,#0d1420);
+    box-shadow:0 0 12px rgba(77,227,255,.18),inset 0 -3px 6px rgba(0,0,0,.5)}
+  .key.hl{border-color:var(--cyan);box-shadow:0 0 16px rgba(77,227,255,.75),inset 0 0 8px rgba(77,227,255,.25);color:var(--cyan)}
+  .warn{font-size:12px;color:#ff9fb2;text-align:center;letter-spacing:1px;line-height:1.7;
+    border-top:1px dashed rgba(255,77,109,.3);padding-top:11px}
+  .warn b{color:#ff4d6d}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;top:0;left:0;right:0;z-index:10;pointer-events:none;padding:14px 18px;
+    display:flex;justify-content:space-between;align-items:flex-start;opacity:0;transition:opacity .4s}
+  #hud.on{opacity:1}
+  #enHud{position:fixed;top:13px;left:50%;transform:translateX(-50%);z-index:10;text-align:center;
+    pointer-events:none;min-width:170px}
+  #enHud .bolt{color:#4de3ff;text-shadow:0 0 10px #4de3ff;font-size:16px}
+  #enTxt{font-family:Consolas,Menlo,monospace;color:#fff;font-size:15px;
+    text-shadow:0 0 8px rgba(77,227,255,.6);letter-spacing:1px}
+  #flyState{margin-top:5px;font-size:12px;letter-spacing:1px;color:var(--dim);min-height:15px}
+  #flyState.flynow{color:#4de3ff;text-shadow:0 0 10px #4de3ff;animation:blink .5s infinite}
+  #flyState.flyready{color:#ffe14d;text-shadow:0 0 10px #ffe14d;animation:blink .9s infinite}
+  .panel{border:1px solid rgba(77,227,255,.35);border-radius:12px;padding:10px 16px;min-width:148px;
+    background:rgba(5,9,17,.72);backdrop-filter:blur(4px);box-shadow:0 0 18px rgba(77,227,255,.12)}
+  .panel .lb{font-size:11px;color:var(--dim);letter-spacing:3px;margin-bottom:2px}
+  #spd{font-size:42px;font-weight:900;font-family:Consolas,Menlo,monospace;color:#fff;
+    text-shadow:0 0 14px rgba(77,227,255,.9);line-height:1}
+  #spdUnit{font-size:13px;color:var(--cyan);margin-left:4px}
+  .rpanel{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  .mini{font-size:16px;font-family:Consolas,monospace;color:#d9f6ff;text-shadow:0 0 8px rgba(77,227,255,.35)}
+  #diffChip{font-size:13px;letter-spacing:2px;padding:4px 14px;border-radius:999px;border:1.5px solid;
+    background:rgba(5,9,17,.72);backdrop-filter:blur(4px)}
+
+  /* ---------- 就绪倒计时 ---------- */
+  #rdy{position:fixed;left:0;right:0;top:44%;z-index:12;text-align:center;pointer-events:none;
+    visibility:hidden;opacity:0;transition:opacity .18s}
+  #rdy.on{visibility:visible;opacity:1}
+  #rdyTxt{font-size:68px;font-weight:900;letter-spacing:12px;color:#fff;
+    text-shadow:0 0 20px rgba(77,227,255,1),0 0 60px rgba(255,47,214,.7);font-family:Consolas,monospace}
+  #rdyKey{display:inline-flex;gap:10px;margin-top:20px}
+  #rdyKey .key{width:54px;height:54px;font-size:26px;animation:blink 1s infinite}
+  #rdyKey .key:nth-child(1){animation-delay:.05s}#rdyKey .key:nth-child(2){animation-delay:.3s}
+  @keyframes blink{0%,100%{opacity:1;box-shadow:0 0 14px rgba(77,227,255,.85)}50%{opacity:.4}}
+  #rdyTag{position:fixed;left:0;right:0;bottom:26px;z-index:12;text-align:center;pointer-events:none;
+    color:var(--dim);font-size:12px;letter-spacing:3px;visibility:hidden}
+  #rdyTag.on{visibility:visible}
+  #goHint{position:fixed;left:0;right:0;top:38%;z-index:12;text-align:center;pointer-events:none;
+    visibility:hidden;opacity:0;transition:opacity .25s}
+  #goHint.on{visibility:visible;opacity:1}
+  #goHint span{display:inline-block;font-size:22px;letter-spacing:4px;color:#ffe14d;padding:12px 26px;
+    border:1px solid rgba(255,225,77,.45);border-radius:14px;background:rgba(14,10,4,.5);
+    box-shadow:0 0 22px rgba(255,225,77,.25);text-shadow:0 0 12px rgba(255,225,77,.9),0 0 40px rgba(255,47,214,.45);
+    animation:blink 1s infinite}
+  #goHint b{color:#fff}
+  #errbar{position:fixed;left:8px;bottom:8px;z-index:99;font-size:12px;color:#ffb9b9;
+    background:rgba(64,0,12,.85);border:1px solid #ff4d6d;padding:4px 10px;border-radius:6px;
+    display:none;max-width:78vw;white-space:pre-wrap}
+
+  /* ---------- Game Over ---------- */
+  #ovTitle{font-size:min(12vw,92px);font-weight:900;letter-spacing:10px;line-height:1;
+    background:linear-gradient(180deg,#fff,#ff6a9b 55%,#ff2fd6);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 22px rgba(255,47,214,.8));font-family:"Arial Black",sans-serif}
+  #ovTip{color:#ff9fb2;letter-spacing:3px;margin:14px 0 24px;font-size:14px}
+  .stats{display:flex;margin-bottom:28px;border:1px solid rgba(255,47,214,.35);border-radius:16px;
+    overflow:hidden;background:rgba(12,6,18,.6);box-shadow:0 0 26px rgba(255,47,214,.15)}
+  .stat{padding:16px 32px;text-align:center;min-width:158px}
+  .stat+.stat{border-left:1px solid rgba(255,47,214,.28)}
+  .stat .v{font-size:38px;font-weight:900;font-family:Consolas,monospace;color:#fff;text-shadow:0 0 12px rgba(255,47,214,.8)}
+  .stat .u{font-size:11px;color:var(--dim);letter-spacing:2px;margin-top:4px}
+  .oBtns{display:flex;gap:16px}
+  .obtn{border:2px solid var(--cyan);background:rgba(5,9,17,.7);color:#c9f6ff;font-family:inherit;font-size:18px;
+    letter-spacing:4px;padding:14px 34px;border-radius:12px;cursor:pointer;transition:.15s}
+  .obtn:hover{box-shadow:0 0 22px rgba(77,227,255,.7);transform:translateY(-2px);color:#fff}
+  .obtn.mg{border-color:var(--magenta);color:#ffd3f4}
+  .obtn.mg:hover{box-shadow:0 0 22px rgba(255,47,214,.7)}
+  .hintline{margin-top:20px;font-size:12px;color:var(--dim);letter-spacing:2px}
+  .aiRow{display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 4px}
+  .aiLb{font-size:12px;color:var(--dim);letter-spacing:3px;margin-right:4px}
+  .aiBtn{border:1.5px solid rgba(77,227,255,.55);background:rgba(10,20,34,.72);color:#bff6ff;font-family:inherit;
+    font-size:14px;letter-spacing:2px;padding:7px 16px;border-radius:999px;cursor:pointer;transition:.15s}
+  .aiBtn:hover{box-shadow:0 0 16px rgba(77,227,255,.75);transform:translateY(-1px);color:#fff}
+  #newRec{position:fixed;top:182px;right:18px;z-index:11;font-size:13px;color:#ffd700;letter-spacing:2px;
+    text-shadow:0 0 10px rgba(255,215,0,.55);pointer-events:none;display:none;
+    animation:recpulse 1.2s ease-in-out infinite}
+  @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.45}}
+</style>
+</head>
+<body>
+<canvas id="game" tabindex="0"></canvas>
+
+<!-- ================= HUD ================= -->
+<div id="hud">
+  <div class="panel">
+    <div class="lb">SPEED 速度</div>
+    <div><span id="spd">0</span><span id="spdUnit">km/h</span></div>
+    <div class="lb" style="margin-top:6px">DIST 距离</div>
+    <div class="mini" id="dist">0.0 m</div>
+  </div>
+  <div class="rpanel">
+    <div id="diffChip">·</div>
+    <div class="panel" style="min-width:132px;text-align:right">
+      <div class="lb">TIME 用时</div>
+      <div class="mini" id="time">0.0 s</div>
+      <div class="lb" style="margin-top:5px">BEST 最佳</div>
+      <div class="mini" id="hudBest">-- m</div>
+    </div>
+  </div>
+</div>
+<div id="enHud">
+  <div><span class="bolt">⚡</span> <span id="enTxt">0 / 10</span></div>
+  <div id="flyState">——</div>
+</div>
+
+<!-- ================= 就绪倒计时 ================= -->
+<div id="rdy">
+  <div id="rdyTxt">3</div>
+  <div id="rdyKey">
+    <div class="key">←</div><div class="key">→</div>
+  </div>
+</div>
+<div id="rdyTag">← → 转向 &nbsp;·&nbsp; 收集 ⚡ 攒满按 空格 飞行 &nbsp;·&nbsp; 落地要在线内！</div>
+<div id="goHint"><span>用 <b>← →</b> 转向 · 吃路上的 <b>⚡</b> 攒满可飞行！</span></div>
+<div id="errbar"></div>
+<div id="newRec">★ NEW RECORD 新纪录</div>
+
+<!-- ================= 主菜单 ================= -->
+<div class="screen show" id="menu">
+  <div class="logo">
+    <h1>方向<span class="m">掌控者</span></h1>
+    <div class="sub">A R R O W &nbsp; K E Y &nbsp; M A S T E R</div>
+  </div>
+  <div class="diffs">
+    <button class="dbtn" id="dbtnEasy">
+      <span class="nm" style="color:#baffd8">简单</span>
+      <span class="ds">宽阔赛道 · 平缓弯道<br>能量门槛 ⚡ 10</span>
+      <span class="best" id="bestEasy">最佳 -- m</span>
+    </button>
+    <button class="dbtn" id="dbtnMed">
+      <span class="nm" style="color:#ffe9b0">中等</span>
+      <span class="ds">适中宽度 · 连续 S 弯<br>能量门槛 ⚡ 8</span>
+      <span class="best" id="bestMed">最佳 -- m</span>
+    </button>
+    <button class="dbtn" id="dbtnHard">
+      <span class="nm" style="color:#ffc2ce">困难</span>
+      <span class="ds">稍宽赛道 · 急弯变向<br>能量门槛 ⚡ 6</span>
+      <span class="best" id="bestHard">最佳 -- m</span>
+    </button>
+  </div>
+  <div class="aiRow">
+    <span class="aiLb">AI 试玩</span>
+    <button class="aiBtn" id="aiEasy">🤖 简单</button>
+    <button class="aiBtn" id="aiMed">🤖 中等</button>
+    <button class="aiBtn" id="aiHard">🤖 困难</button>
+  </div>
+  <div class="helpbox">
+    <div class="keys">
+      <div class="kcol"><div class="krow"><div class="key hl">←</div><div class="key hl">→</div></div><span class="kcap">左右 · 转向躲避</span></div>
+      <div class="kcol"><div class="key" style="color:#ffe14d;border-color:rgba(255,225,77,.55)">⚡</div><span class="kcap">收集能量块</span></div>
+      <div class="kcol"><div class="key" style="width:86px;font-size:14px;letter-spacing:1px;color:#bff6ff;border-color:rgba(77,227,255,.55)">SPACE</div><span class="kcap">能量满 · 飞行10s</span></div>
+    </div>
+    <div class="warn"><b>规则：</b>车辆自动加速、越来越快——全程<b>只需操控左右方向键</b>。赛道会出现<b>分叉</b>，且两条支路上的道具不同（⚡能量块偏一条、标志桶偏另一条），选路前先看清。<br>
+    收集 <b>⚡能量块</b>（简单 10 / 中等 8 / 困难 6）攒满按 <b>空格</b> 飞行 <b>5 秒</b>；路上的<b>亮蓝起飞滑道</b>碰后立即飞行 <b>3 秒</b>；<b>每 10000 米</b>会出现一次<b>亮金起飞滑道</b>，碰后飞行 <b>10 秒</b>。<br>
+    飞行中<b>无视路障</b>、可自由转向、带粉色闪光拖尾，但<b>落地瞬间若不在赛道内或贴墙即为失败</b>。撞上标志桶会被撞飞并 <b>-50 km/h</b>（不会死）。</div>
+  </div>
+</div>
+
+<!-- ================= Game Over ================= -->
+<div class="screen" id="over">
+  <div id="ovTitle">GAME OVER</div>
+  <div id="ovTip">撞上赛道霓虹墙 · 挑战终止</div>
+  <div class="stats">
+    <div class="stat"><div class="v" id="ovDist">0</div><div class="u">DISTANCE 距离 (m)</div></div>
+    <div class="stat"><div class="v" id="ovTime">0.0</div><div class="u">TIME 用时 (s)</div></div>
+    <div class="stat"><div class="v" id="ovTop">0</div><div class="u">TOP SPEED 极速 (km/h)</div></div>
+  </div>
+  <div class="oBtns">
+    <button class="obtn mg" id="againBtn">⟳ 重新开始</button>
+    <button class="obtn" id="menuBtn2">☰ 返回菜单</button>
+  </div>
+  <div class="hintline">按 R 快速重开 · 按 M 返回菜单</div>
+</div>
+
+<script>
+"use strict";
+try{
+(function(){
+  /* ============================================================
+     方向掌控者 · Arrow Key Master
+     ============================================================ */
+
+  // ---------- DOM ----------
+  var cvs = document.getElementById('game');
+  var ctx = cvs.getContext('2d');
+  var elHud = document.getElementById('hud');
+  var elSpd = document.getElementById('spd');
+  var elDist = document.getElementById('dist');
+  var elTime = document.getElementById('time');
+  var elDiff = document.getElementById('diffChip');
+  var elBest = document.getElementById('hudBest');
+  var elEnTxt = document.getElementById('enTxt');
+  var elFlyState = document.getElementById('flyState');
+  var elRec = document.getElementById('newRec');
+  var elMenu = document.getElementById('menu');
+  var elOver = document.getElementById('over');
+  var elRdy = document.getElementById('rdy');
+  var elRdyTxt = document.getElementById('rdyTxt');
+  var elRdyTag = document.getElementById('rdyTag');
+  var elGoHint = document.getElementById('goHint');
+  var elOvDist = document.getElementById('ovDist');
+  var elOvTime = document.getElementById('ovTime');
+  var elOvTop = document.getElementById('ovTop');
+
+  // ---------- 难度配置 ----------
+  var D = {
+    // rise: 速度自动攀升速率; energyMax: 攒满可飞(5s)的能量数; pick/cone/pad: 能量块/标志桶/蓝滑道间距(px); forkFirst/forkNext: 分叉节奏(px)
+    easy: {name:'简单', color:'#39ff8f', roadW:210, rise:10, energyMax:10, pick:[760,1150], cone:[2000,3600], pad:[5800,8600],
+           forkFirst:[2600,4200], forkNext:[6000,7400],
+           seg:[520,980], amp:[60,125], straight:.38, sCurve:.4, steer:1200, latMax:250, damp:7.6},
+    med:  {name:'中等', color:'#ffc531', roadW:150, rise:15, energyMax:8, pick:[560,880], cone:[1500,2900], pad:[5000,7600],
+           forkFirst:[2300,3800], forkNext:[5600,7000],
+           seg:[340,660], amp:[100,185], straight:.14, sCurve:.62, steer:1350, latMax:275, damp:7.6},
+    hard: {name:'困难', color:'#ff4d6d', roadW:112, rise:22, energyMax:6, pick:[430,700], cone:[1150,2400], pad:[4300,6800],
+           forkFirst:[2000,3400], forkNext:[5100,6600],
+           seg:[225,360], amp:[128,210], straight:.02, sCurve:.86, steer:1700, latMax:335, damp:7.3}
+  };
+  var DIFF_ORDER = ['easy','med','hard'];
+  var KMH2PX = 2.2;                 // 速度 → 屏幕滚动 px/s
+  var KMH_CAP = 500;                // 速度上限 500 km/h(≈1100px/s 滚动)
+  var FLY_TIME = 5;                 // 能量攒满按 空格 的飞行秒数
+  var PAD_FLY = 3;                  // 蓝色起飞滑道飞行秒数
+  var GOLD_FLY = 10;                // 金色起飞滑道飞行秒数(每10000米一个)
+  var GOLD_DIST = 10000;            // 金色滑道出现间隔(行驶米)
+  var FORK_SUB = 0.75;              // 分叉支路宽度系数(中段车道半宽 = hw*FORK_SUB, 间隙更明显)
+  var BASE_CAR_W = 34, BASE_CAR_H = 50;          // 绘制基准尺寸(视觉含轮)
+  var CAR_W = 27, CAR_H = 39;                    // 碰撞多边形尺寸(车更小)
+  var CAR_S = CAR_W / BASE_CAR_W;                // 绘制统一缩放 ≈0.79
+  var HW = CAR_W/2, HH = CAR_H/2;                // 13.5 / 19.5
+  var WARN_ZONE = 30;               // 贴边警示距离 px
+
+  // ---------- 画布尺寸 ----------
+  var W=0,H=0,cy=0,X0=0;
+  function resize(){
+    W = cvs.width = window.innerWidth;
+    H = cvs.height = window.innerHeight;
+    cy = Math.round(H*0.70);
+    X0 = W/2;
+    if(ghosts) ghosts.length=0;
+  }
+  window.addEventListener('resize', function(){
+    var wasRun = (mode==='run'||mode==='ready');
+    resize();
+    buildRoadBuffers();
+    if(wasRun){ /* 继续运行,重新约束车辆位置 */ }
+    if(car) car.x = Math.min(Math.max(car.x, 26), W-26);
+  });
+
+  // ============================================================
+  //  道路生成 —— 分段三次 Hermite(端点斜率=0),无限向前延伸,平滑无尖角
+  //  offsetAt(s) : s=行驶里程(px), 返回赛道中心相对画面中线的横向偏移
+  //  分叉: forks[i]={s0,s1,G}; 分叉段内两车道中心 = 基线中心 ± spread(s)
+  // ============================================================
+  var Road = {
+    segs: [],      // {s0,s1,E0,E1}
+    forks: [],     // {s0,s1,G} 分叉段
+    sEnd: 0,       // 当前几何已生成到的里程
+    E: 0,          // 末尾横向偏移
+    corridor: 200, // 横向偏移软边界
+    hw: 100,       // 半宽
+    lastDelta: 0,
+    nextForkAt: 0, // 允许再分叉的起始里程
+
+    reset: function(cfg){
+      this.segs=[]; this.forks=[]; this.sEnd=0; this.E=0; this.lastDelta=0;
+      this.hw = cfg.roadW/2;
+      this.corridor = Math.max(70, W/2 - this.hw - 26);
+      // 开场平直段
+      var L0 = 900;
+      this.segs.push({s0:0,s1:L0,E0:0,E1:0});
+      this.sEnd = L0;
+      // 首个分叉尽早出现
+      this.nextForkAt = L0 + cfg.forkFirst[0] + Math.random()*(cfg.forkFirst[1]-cfg.forkFirst[0]);
+    },
+    ensureUpTo: function(sMax){
+      var self=this;
+      var guard=0;
+      while(this.sEnd < sMax && guard++ < 500){
+        var cfg = curDiff();
+        // —— 分叉轨道: 放宽触发条件, 更频繁更醒目 ——
+        if(this.sEnd >= this.nextForkAt){
+          var maxG = W/2 - this.hw - Math.abs(this.E) - 60;
+          if(maxG > this.hw*0.9){
+            var G = Math.min(this.hw*(1.2 + Math.random()*0.5), maxG);   // 间隙更大更明显
+            this.makeFork(G);
+            continue;
+          }
+          // 两侧空间不足时推迟再试
+          this.nextForkAt = this.sEnd + 400 + Math.random()*500;
+        }
+        var L = cfg.seg[0] + Math.random()*(cfg.seg[1]-cfg.seg[0]);
+        var delta=0;
+        var isStraight = Math.random() < cfg.straight;
+        if(!isStraight){
+          var toward = this.E > 0 ? -1 : 1;
+          var r = Math.abs(this.E)/this.corridor;      // 0..1 离中程度
+          var pullP = Math.min(0.96, 0.28 + 0.75*r);
+          var lastCurve = this.lastDelta !== 0;
+          var dir;
+          if(lastCurve && Math.random() < cfg.sCurve && r < 0.72){
+            dir = -(this.lastDelta > 0 ? 1 : -1);      // 延续 S 弯
+          } else if(Math.random() < pullP){
+            dir = toward;                              // 向中回拉
+          } else {
+            dir = Math.random()<0.5?1:-1;
+          }
+          var mag = cfg.amp[0] + Math.random()*(cfg.amp[1]-cfg.amp[0]);
+          delta = dir*mag;
+          // 硬边界
+          if(Math.abs(this.E+delta) > this.corridor*0.97){
+            var sign = (this.E+delta)>0?1:-1;
+            delta = sign*this.corridor*0.97 - this.E;
+          }
+          this.lastDelta = delta;
+        } else {
+          this.lastDelta = 0;
+        }
+        var E0=this.E, E1=this.E+delta;
+        this.segs.push({s0:this.sEnd, s1:this.sEnd+L, E0:E0, E1:E1});
+        this.sEnd += L; this.E = E1;
+      }
+    },
+    // 创建一条分叉段:基线保持平直,两条较窄的车道向两侧张开再平滑合拢
+    // bias: 该分叉里"能量块偏向的车道"(0左/1右), 标志桶偏向另一条 → 两分支道具不同
+    makeFork: function(G){
+      var Lf = 900 + Math.random()*650;            // 更长, 岔路更醒目
+      var s0=this.sEnd, s1=s0+Lf;
+      this.forks.push({s0:s0, s1:s1, G:G, bias:(Math.random()<0.5?0:1)});
+      this.sEnd = s1;
+      var d=curDiff();
+      this.nextForkAt = s1 + d.forkNext[0] + Math.random()*(d.forkNext[1]-d.forkNext[0]);
+      this.lastDelta = 0;
+    },
+    // 在 s 处的分叉张开量(0=无分叉)
+    spreadAt: function(s){
+      var a=this.forks;
+      for(var i=0;i<a.length;i++){
+        var f=a[i];
+        if(s>=f.s0 && s<=f.s1){
+          var t=(s-f.s0)/(f.s1-f.s0);
+          // 0→1→0 平滑张合 (两端与中点速度都归零)
+          return f.G*(0.5 - 0.5*Math.cos(2*Math.PI*t));
+        }
+      }
+      return 0;
+    },
+    // 分叉段的车道半宽:两端与主路同宽,中段收窄到 FORK_SUB*hw,避免交叉成"瘤"
+    halfWidthAt: function(s){
+      var a=this.forks;
+      for(var i=0;i<a.length;i++){
+        var f=a[i];
+        if(s>=f.s0 && s<=f.s1){
+          var t=(s-f.s0)/(f.s1-f.s0);
+          var bw=this.hw - (this.hw - FORK_SUB*this.hw)*Math.pow(Math.sin(Math.PI*t),2);
+          return bw;
+        }
+      }
+      return this.hw;
+    },
+    // 返回 s 所在的分叉记录(含 bias), 不在分叉内返回 null
+    forkAt: function(s){
+      var a=this.forks;
+      for(var i=0;i<a.length;i++){ if(s>=a[i].s0 && s<=a[i].s1) return a[i]; }
+      return null;
+    },
+    // 车道中心相对画面中线偏移列表(无分叉=1条,分叉=2条)
+    laneOffsets: function(s){
+      var w=this.spreadAt(s);
+      var off=this.offsetAt(s);
+      if(w<=0.001) return [off];
+      return [off-w, off+w];
+    },
+    // Hermite: 位置
+    offsetAt: function(s){
+      if(s<=0) return 0;
+      var a=this.segs, lo=0, hi=a.length-1;
+      if(s>=a[hi].s1) return a[hi].E1;
+      while(lo<hi){ var mid=(lo+hi+1)>>1; if(a[mid].s0<=s) lo=mid; else hi=mid-1; }
+      var g=a[lo]; if(g.s1<=g.s0) return g.E1;
+      var u=(s-g.s0)/(g.s1-g.s0);
+      if(u<0)u=0; else if(u>1)u=1;
+      var d=g.E1-g.E0;
+      return g.E0 + d*(3*u*u - 2*u*u*u);
+    },
+    // Hermite: 斜率 doff/ds (0..1.5*d/L)
+    slopeAt: function(s){
+      if(s<=0) return 0;
+      var a=this.segs, lo=0, hi=a.length-1;
+      if(s>=a[hi].s1) return 0;
+      while(lo<hi){ var mid=(lo+hi+1)>>1; if(a[mid].s0<=s) lo=mid; else hi=mid-1; }
+      var g=a[lo], L=g.s1-g.s0; if(L<=0) return 0;
+      var u=(s-g.s0)/L; if(u<0)u=0; else if(u>1)u=1;
+      var d=g.E1-g.E0;
+      return 6*d*u*(1-u)/L;
+    }
+  };
+
+  // 帧缓冲(双车道): 每行左右边界 (i = H - y)
+  // 车道A 左/右 = aL/aR, 车道B 左/右 = bL/bR; 无分叉时两车道重合
+  var roadAL=null, roadAR=null, roadBL=null, roadBR=null;
+  function buildRoadBuffers(){
+    var n=H+1;
+    roadAL = new Float32Array(n); roadAR = new Float32Array(n);
+    roadBL = new Float32Array(n); roadBR = new Float32Array(n);
+  }
+  function sampleRoadRows(){
+    // i:0=底部 … H=顶部; 每行使用 Road.halfWidthAt 的收窄半宽, 保证车道边界与碰撞/拾取一致
+    for(var i=0;i<=H;i++){
+      var y=H-i;
+      var s = car.sCar + (cy - y);
+      var off = Road.offsetAt(s);
+      var w = Road.spreadAt(s);
+      var bw = Road.halfWidthAt(s);
+      var ca = X0 + off - w;          // 左车道中心
+      var cb = X0 + off + w;          // 右车道中心
+      roadAL[i]=ca-bw; roadAR[i]=ca+bw;
+      roadBL[i]=cb-bw; roadBR[i]=cb+bw;
+    }
+  }
+
+  // ============================================================
+  //  游戏状态
+  // ============================================================
+  var mode = 'menu';          // menu | ready | run | over
+  var aiMode = false;         // AI 自动驾驶演示中
+  var diffKey = 'med';
+  // 连点加速: tapN[0]=← tapN[1]=→ 的连击数; tapT 最近一次按下时刻(gTime 秒)
+  // 同方向两次按下间隔 <50ms 视为一次连点(排除系统长按 repeat), 连点越多转向越快
+  var tapN = [0,0], tapT = [-9,-9];
+  var keys = {};
+  var lastT = 0, gTime=0;     // 总时间
+  var frame = 0;
+
+  var car = null;
+  var ghosts = [];
+  var ghostTimer = 0;
+  var particles = [];
+  var shake = 0, flashA = 0, vignA = 0;
+  var overT = 0, overShown = false, crashedAtX=0, crashedAtY=0;
+  var readyT = 0;
+  var warnedSide = 0;         // 最近警示方向, -1 左 / 1 右
+
+  // ---------- 车辆状态 ----------
+  function newCar(){
+    return {
+      x: X0, vx: 0,
+      kmh: 0, sCar: Math.max(0, H-cy), dist: 0, runT: 0, topKmh: 0,
+      rot: 0, pitch: 0
+    };
+  }
+
+  function curDiff(){ return D[diffKey]; }
+
+  // ============================================================
+  //  流程控制
+  // ============================================================
+  function bestKey(k){ return 'dkz_best_'+k; }
+  function loadBest(k){ var v; try{v=parseFloat(localStorage.getItem(bestKey(k))||'0');}catch(e){v=0;} return v||0; }
+  function saveBest(k,v){ try{ localStorage.setItem(bestKey(k), String(Math.floor(v))); }catch(e){} }
+
+  function refreshBestTexts(){
+    for(var i=0;i<DIFF_ORDER.length;i++){
+      var k=DIFF_ORDER[i];
+      var el=document.getElementById(k==='easy'?'bestEasy':(k==='med'?'bestMed':'bestHard'));
+      if(el) el.textContent='最佳 '+(loadBest(k)||'--')+' m';
+    }
+  }
+
+  function setMode(m){
+    mode=m;
+    if(m!=='run') elGoHint.classList.remove('on');
+    if(m==='menu'){
+      // 返回主菜单:必须把菜单面板加回 .show(初始化时靠 HTML 写死,返回时需要显式恢复)
+      elMenu.classList.add('show');
+      elHud.classList.remove('on');
+    } else {
+      elMenu.classList.remove('show');
+      if(m==='run'||m==='ready') elHud.classList.add('on');
+      // over 面板由 showOverPanel() 延迟弹出(保留撞击爆炸特效时间),这里不直接显示
+    }
+  }
+
+  function goMenu(){
+    aiMode=false;
+    tapN[0]=0; tapN[1]=0; tapT[0]=-9; tapT[1]=-9;
+    elOver.classList.remove('show');
+    elRdy.classList.remove('on');
+    elRdyTag.classList.remove('on');
+    if(elRec) elRec.style.display='none';
+    setMode('menu');
+    // 氛围:菜单下也慢慢滚动道路
+    car = newCar();
+    var d=D.med;
+    Road.reset(d);
+    Road.ensureUpTo(car.sCar+cy+900);
+    resetEnergyState(car.sCar);
+    focusGame();
+  }
+
+  function initRun(k){
+    diffKey=k;
+    car = newCar();
+    var d=curDiff();
+    Road.reset(d);
+    Road.ensureUpTo(car.sCar+cy+900);
+    ghosts.length=0; particles.length=0;
+    shake=0; flashA=0; vignA=0; overT=0; overShown=false;
+    warnedSide=0;
+    resetEnergyState(car.sCar);
+    tapN[0]=0; tapN[1]=0; tapT[0]=-9; tapT[1]=-9;
+    readyT=3.0;
+    var chip=elDiff;
+    chip.textContent=(aiMode?'🤖 ':'')+d.name;
+    chip.style.color=d.color;
+    chip.style.borderColor=d.color;
+    chip.style.boxShadow='0 0 14px '+d.color+'55';
+    elBest.textContent=Math.floor(loadBest(k))+' m';
+    if(elRec) elRec.style.display='none';
+    elOver.classList.remove('show');
+    elRdyTag.classList.add('on');
+    setMode('ready');
+    elRdy.classList.add('on');
+    elRdyTxt.textContent='3';
+    focusGame();
+  }
+
+  function finishRun(){
+    var d=curDiff();
+    var best=loadBest(diffKey);
+    var dist=car.dist;
+    var isRec=false;
+    if(dist>best){ best=dist; saveBest(diffKey,dist); isRec=true; }
+    elOvDist.textContent=Math.floor(dist);
+    elOvTime.textContent=car.runT.toFixed(1);
+    elOvTop.textContent=Math.floor(car.topKmh);
+    elBest.textContent=Math.floor(best)+' m';
+    if(isRec && elRec) elRec.style.display='block';
+    refreshBestTexts();
+    setMode('over');
+    elRdy.classList.remove('on');
+    elRdyTag.classList.remove('on');
+  }
+
+  function crashCar(){
+    // 爆炸粒子
+    var n=34;
+    for(var i=0;i<n;i++){
+      var a=Math.random()*Math.PI*2;
+      var sp=60+Math.random()*320;
+      var life=0.5+Math.random()*0.7;
+      var colors=['#ff2fd6','#ffe14d','#4de3ff','#ff6a3d','#ffffff'];
+      particles.push({x:car.x, y:cy, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-80,
+        life:life, t:0, r:2+Math.random()*5,
+        c:colors[(Math.random()*colors.length)|0]});
+    }
+    crashedAtX=car.x; crashedAtY=cy;
+    shake=14; flashA=0.85; overT=0; overShown=false;
+    car.kmh=0; car.vx=0; flying=false; flyT=0; flyReady=false;
+    finishRun();      // 结算:距离/用时/极速 + 最佳纪录
+    overT=0;
+  }
+
+  function showOverPanel(){
+    if(!overShown){
+      overShown=true;
+      elOver.classList.add('show');
+    }
+  }
+
+  // ============================================================
+  //  能量块 / 标志桶 / 飞行
+  // ============================================================
+  // 路件统一表示: {s, lane(0左/1右车道索引), lat(相对该车道中心的横向偏移)}
+  // 屏幕x = X0 + Road.laneOffsets(s)[lane] + lat —— 每帧按车道实时解析, 保证永远在路面内
+  var picks = [];         // 能量块
+  var pickNextS = 0;      // 下一能量块生成的里程
+  var cones = [];         // 标志桶
+  var coneNextS = 0;      // 下一标志桶生成的里程
+  var pads = [];          // 起飞滑道 {s,lane,lat,kind:'pad'|'gold'}
+  var padNextS = 0;       // 下一蓝色滑道生成的里程
+  var goldNextM = GOLD_DIST;  // 下一金色滑道出现的行驶里程(米)
+  var energyPieces = 0;   // 本局已收集能量
+  var flying = false;     // 飞行中
+  var flyT = 0;           // 剩余飞行秒
+  var flyReady = false;   // 能量攒满待命
+
+  function curEnergyMax(){ return curDiff().energyMax; }
+
+  function resetEnergyState(sCar0){
+    picks.length=0; cones.length=0; pads.length=0;
+    pickNextS = sCar0 + 300;
+    coneNextS = sCar0 + 1400 + Math.random()*1200;
+    padNextS = sCar0 + 6000 + Math.random()*3000;
+    goldNextM = GOLD_DIST;
+    energyPieces = 0; flying = false; flyT = 0; flyReady = false;
+  }
+
+  function startFlight(){
+    if(flying || energyPieces < curEnergyMax()) return;
+    flying=true; flyT=FLY_TIME;
+    energyPieces=0; flyReady=false;
+  }
+
+  // 在某个里程选车道: pick 偏能量支路 / cone 偏标志桶支路(分叉内两分支道具不同)
+  function placeOnLane(s, frac, kind){
+    var centers=Road.laneOffsets(s);
+    var lane;
+    if(centers.length===1){
+      lane=0;
+    } else if(kind==='pick' || kind==='cone'){
+      var fk=Road.forkAt(s);
+      var biasLane=(fk && fk.bias===1)?1:0;             // 能量偏向车道
+      lane=(kind==='pick') ? biasLane : 1-biasLane;
+    } else {
+      lane=(Math.random()*centers.length)|0;
+    }
+    var half=Road.halfWidthAt(s);
+    var lat=(Math.random()*2-1)*(half*frac);
+    return {lane:lane, lat:lat};
+  }
+  function itemScreenX(it){
+    var centers=Road.laneOffsets(it.s);
+    var lane=Math.min(it.lane, centers.length-1);
+    return X0 + centers[lane] + it.lat;
+  }
+
+  function ensurePicks(sMax){
+    var d=curDiff();
+    while(pickNextS < sMax){
+      var gap = d.pick[0] + Math.random()*(d.pick[1]-d.pick[0]);
+      pickNextS += gap;
+      var pl=placeOnLane(pickNextS, 0.40, 'pick');
+      picks.push({s:pickNextS, lane:pl.lane, lat:pl.lat});
+    }
+  }
+
+  function ensureCones(sMax){
+    var d=curDiff();
+    while(coneNextS < sMax){
+      var gap = d.cone[0] + Math.random()*(d.cone[1]-d.cone[0]);
+      coneNextS += gap;
+      var pl=placeOnLane(coneNextS, 0.55, 'cone');
+      cones.push({s:coneNextS, lane:pl.lane, lat:pl.lat});
+    }
+  }
+
+  // 横向亮带: 在指定里程铺一条(或分叉时每条车道各一条)横跨车道的起飞亮带
+  function pushPadAcross(s, kind){
+    var centers=Road.laneOffsets(s);
+    for(var li=0; li<centers.length; li++){
+      pads.push({s:s, lane:li, lat:0, kind:kind});
+    }
+  }
+
+  // 蓝色起飞滑道: 每隔一段一段, 碰后飞行3s
+  function ensurePads(sMax){
+    var d=curDiff();
+    while(padNextS < sMax){
+      var gap = d.pad[0] + Math.random()*(d.pad[1]-d.pad[0]);
+      padNextS += gap;
+      pushPadAcross(padNextS, 'pad');
+    }
+  }
+
+  // 金色起飞滑道: 每行驶 GOLD_DIST(10000)米在前方放一个(碰后飞行10s)
+  function ensureGoldPad(){
+    while(goldNextM <= car.dist){
+      var s = car.sCar + 1800 + Math.random()*900;
+      pushPadAcross(s, 'gold');
+      goldNextM += GOLD_DIST;
+    }
+  }
+
+  function collectPicks(){
+    for(var i=picks.length-1;i>=0;i--){
+      var p=picks[i];
+      var ds=p.s-car.sCar;
+      if(ds < -40){ picks.splice(i,1); continue; }        // 错过
+      if(ds > 40) continue;
+      var px=itemScreenX(p);
+      if(Math.abs(car.x-px) < HW+14){
+        picks.splice(i,1);
+        energyPieces++;
+        // 收集特效
+        for(var k=0;k<10;k++){
+          var a=Math.random()*Math.PI*2, sp=40+Math.random()*160;
+          particles.push({x:px,y:cy+ds,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0.35+Math.random()*0.3,t:0,r:1.5+Math.random()*2.5,
+            c:(Math.random()<0.5?'#4de3ff':'#ffe14d')});
+        }
+        if(energyPieces>=curEnergyMax()){
+          flyReady=true; energyPieces=curEnergyMax();
+        }
+      }
+    }
+  }
+
+  // 撞上标志桶: 不判死, 桶被撞飞, 速度 -50 km/h
+  function hitCones(){
+    if(flying) return;                       // 飞行无视
+    for(var i=cones.length-1;i>=0;i--){
+      var c=cones[i];
+      var ds=c.s-car.sCar;
+      if(ds < -60){ cones.splice(i,1); continue; }
+      if(ds > 40) continue;
+      var cx=itemScreenX(c);
+      if(Math.abs(car.x-cx) < HW+16){
+        cones.splice(i,1);
+        car.kmh=Math.max(0, car.kmh-50);     // -50 km/h
+        shake=Math.max(shake,7);
+        // 桶被撞飞
+        for(var k=0;k<12;k++){
+          var a=Math.PI*0.75+Math.random()*1.5, sp=120+Math.random()*260;
+          particles.push({x:cx,y:cy+ds,vx:Math.cos(a)*sp*0.4,vy:Math.sin(a)*sp-160,life:0.5+Math.random()*0.4,t:0,r:2+Math.random()*3,
+            c:(Math.random()<0.5?'#ff8a3d':'#ffd166')});
+        }
+      }
+    }
+  }
+
+  // 起飞滑道(横向亮带): 蓝=飞行3s, 金=飞行10s; 车行至带所在车道即触发(飞行中可叠加/延长,上限10s)
+  function collectPads(){
+    for(var i=pads.length-1;i>=0;i--){
+      var p=pads[i];
+      var ds=p.s-car.sCar;
+      if(ds < -50){ pads.splice(i,1); continue; }        // 错过
+      if(ds > 30) continue;
+      var centers=Road.laneOffsets(p.s);
+      if(p.lane>=centers.length) continue;
+      var half=Road.halfWidthAt(p.s);
+      // 亮带横跨整条车道, 车中心在该车道内即触发
+      if(Math.abs(car.x-(X0+centers[p.lane])) > half+4) continue;
+      pads.splice(i,1);
+      var dur = (p.kind==='gold') ? GOLD_FLY : PAD_FLY;
+      if(p.kind==='gold'){
+        flying=true; flyT=Math.max(flyT, GOLD_FLY);
+        energyPieces=0; flyReady=false;
+      } else {
+        if(flying){ flyT=Math.min(GOLD_FLY, flyT+PAD_FLY); }
+        else { flying=true; flyT=PAD_FLY; }
+      }
+      shake=Math.max(shake,3);
+      var col=(p.kind==='gold') ? '#ffd75e' : '#29c7ff';
+      var px=X0+centers[p.lane];
+      for(var k=0;k<16;k++){
+        var a=Math.random()*Math.PI*2, sp=60+Math.random()*220;
+        particles.push({x:px,y:cy+ds,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-40,life:0.4+Math.random()*0.4,t:0,r:2+Math.random()*3,c:col});
+      }
+    }
+  }
+
+  function drawPads(){
+    if(mode==='menu' || mode==='over') return;
+    if(!pads.length || !roadAL) return;
+    ctx.save();
+    ctx.lineJoin='round';
+    for(var i=0;i<pads.length;i++){
+      var p=pads[i];
+      var dy=p.s-car.sCar;
+      if(dy>cy+90 || dy<-H*0.3) continue;
+      var y=cy-dy;
+      if(y<-80 || y>H+80) continue;
+      var centers=Road.laneOffsets(p.s);
+      if(p.lane>=centers.length) continue;
+      var c=centers[p.lane];
+      var bw=Road.halfWidthAt(p.s);
+      var x0=X0+c-bw, x1=X0+c+bw;
+      var w=x1-x0; if(w<=0) continue;
+      var gold=(p.kind==='gold');
+      var col=gold?'#ffd75e':'#29c7ff';
+      var hh=((gold?15:11))*CAR_S + 3;
+      var pulse=0.55+0.45*Math.sin(gTime*13+i*1.3);
+
+      // —— 用对应车道的几何裁剪: 亮带(含光晕)绝不超出轨道边界 ——
+      var L=(p.lane===0)?roadAL:roadBL;
+      var R=(p.lane===0)?roadAR:roadBR;
+      if(!L||!R) continue;
+      var midI=Math.max(0,Math.min(H, Math.round(H-y)));
+      var margin=Math.ceil((hh+30)/1)+1;
+      var r0=Math.max(0, midI-margin), r1=Math.min(H, midI+margin);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(L[r0], H-r0);
+      for(var ri=r0+1; ri<=r1; ri++) ctx.lineTo(L[ri], H-ri);
+      for(var ri2=r1; ri2>=r0; ri2--) ctx.lineTo(R[ri2], H-ri2);
+      ctx.closePath();
+      ctx.clip();
+
+      ctx.translate(0,y);
+      ctx.globalCompositeOperation='lighter';
+      // 横向发光带身
+      ctx.shadowColor=col; ctx.shadowBlur=14*pulse+5;
+      ctx.fillStyle='rgba('+(gold?'255,215,94':'41,199,255')+','+(0.45*pulse+0.12)+')';
+      ctx.fillRect(x0,-hh,w,2*hh);
+      // 带边高亮(上下两条)
+      ctx.shadowBlur=8;
+      ctx.fillStyle='rgba(255,255,255,'+(0.5*pulse)+')';
+      var th=Math.max(1.5,2*CAR_S);
+      ctx.fillRect(x0,-hh,w,th);
+      ctx.fillRect(x0,hh-th,w,th);
+      // 内部流动的高亮短条(行驶方向感)
+      ctx.shadowBlur=5;
+      ctx.fillStyle='rgba('+(gold?'255,255,220':'220,250,255')+','+(0.8*pulse)+')';
+      var per=Math.max(70,(w)/2+10);
+      var off=(gTime*320)%per;
+      for(var cx=x0-off; cx<x1; cx+=per){
+        var cw=Math.min(per*0.42, x1-cx);
+        if(cw>0) ctx.fillRect(cx,-hh*0.5,cw,hh);
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function drawPicks(){
+    if(mode==='menu' || mode==='over') return;
+    if(!picks.length) return;
+    ctx.save();
+    for(var i=0;i<picks.length;i++){
+      var p=picks[i];
+      var dy=p.s-car.sCar;
+      if(dy>cy+50 || dy<-H*0.3) continue;
+      var y=cy-dy;
+      if(y<-24 || y>H+24) continue;
+      var x=itemScreenX(p);
+      var pulse=0.6+0.4*Math.sin(gTime*8+i*1.7);
+      var bob=Math.sin(gTime*4+i)*3;
+      var r=8*CAR_S+ (flying?2:0);
+      ctx.save();
+      ctx.translate(x,y+bob);
+      ctx.rotate(gTime*2.4+i*2.1);
+      ctx.shadowColor='#4de3ff'; ctx.shadowBlur=10+6*pulse;
+      ctx.fillStyle='rgba(140,242,255,'+(0.55+0.4*pulse)+')';
+      ctx.beginPath();
+      ctx.moveTo(0,-r); ctx.lineTo(r*0.62,-r*0.62); ctx.lineTo(r,0); ctx.lineTo(r*0.62,r*0.62);
+      ctx.lineTo(0,r); ctx.lineTo(-r*0.62,r*0.62); ctx.lineTo(-r,0); ctx.lineTo(-r*0.62,-r*0.62);
+      ctx.closePath();
+      ctx.fill();
+      // 中心亮点
+      ctx.fillStyle='#ffffff';
+      ctx.beginPath(); ctx.arc(0,0,r*0.32,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function drawCones(){
+    if(mode==='menu' || mode==='over') return;
+    if(!cones.length) return;
+    ctx.save();
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    for(var i=0;i<cones.length;i++){
+      var c=cones[i];
+      var dy=c.s-car.sCar;
+      if(dy>cy+60 || dy<-H*0.3) continue;
+      var y=cy-dy;
+      if(y<-30 || y>H+30) continue;
+      var x=itemScreenX(c);
+      var w=11*CAR_S, h=20*CAR_S;
+      // 底部阴影椭圆
+      ctx.fillStyle='rgba(0,0,0,0.3)';
+      ctx.beginPath(); ctx.ellipse(x,y+h*0.18,w*0.8,3,0,0,Math.PI*2); ctx.fill();
+      // 锥身(橙白警示条)
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.shadowColor='#ff8a3d'; ctx.shadowBlur=8;
+      ctx.fillStyle='#ff7a2f';
+      ctx.beginPath();
+      ctx.moveTo(0,-h); ctx.lineTo(w*0.8,-h*0.2); ctx.lineTo(-w*0.8,-h*0.2);
+      ctx.closePath(); ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.fillStyle='#fff1e0';
+      ctx.fillRect(-w*0.55,-h*0.05,w*1.1,h*0.18);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // ============================================================
+  //  AI 自动驾驶演示
+  // ============================================================
+  function startAI(k){
+    aiMode=true;
+    initRun(k);
+    aiSetRdyTag();
+  }
+  function aiSetRdyTag(){
+    if(elRdyTag){ elRdyTag.innerHTML='🤖 AI 自动驾驶演示中 · 按 ← 或 → 随时接管'; elRdyTag.classList.add('on'); }
+  }
+  function aiTakeover(){
+    if(!aiMode) return;
+    aiMode=false;
+    if(elDiff) elDiff.textContent=curDiff().name;   // 去掉 🤖
+    keys.ArrowLeft=false; keys.ArrowRight=false;
+  }
+  // 每帧 AI 决策(仅 run 且 aiMode): 对车道中心做指数平滑跟踪(稳定不振荡, 可无限演示),
+  // 附加能量块靠拢/标志桶避让微调; 钳制按"四角安全余量"留足空间, 不会擦墙
+  function aiDrive(){
+    keys.ArrowLeft=false; keys.ArrowRight=false;
+    car.vx=0;
+    var d=curDiff();
+    var cs=Road.laneOffsets(car.sCar);
+    if(!cs.length) return;
+    var idx=(Math.abs(car.x-(X0+cs[0])) <= Math.abs(car.x-(X0+(cs[1]||cs[0])))) ? 0 : 1;
+    if(idx>=cs.length) idx=cs.length-1;
+    var cx=X0+cs[idx];
+    var bw=Road.halfWidthAt(car.sCar);
+    var safe=bw-(HW+10);          // 车心允许的最大侧移(保证四角仍在线内)
+    var target=cx;
+    var i;
+    if(!flying){
+      if(safe >= 38){
+        // 宽道才做机动: 前方同车道标志桶 → 偏移到另一侧通过(量不超过安全余量)
+        for(i=0;i<cones.length;i++){
+          var c=cones[i], ds=c.s-car.sCar;
+          if(ds>20 && ds<620 && c.lane===idx){
+            var sh=(c.lat>=0?-1:1)*Math.min(safe-8, Math.max(22, bw*0.45));
+            target += sh;
+            break;
+          }
+        }
+        // 同车道能量块: 轻微靠拢便于拾取(不超过安全余量)
+        for(i=0;i<picks.length;i++){
+          var p=picks[i], dp=p.s-car.sCar;
+          if(dp>20 && dp<820 && p.lane===idx){
+            target += Math.max(-(safe-8), Math.min(safe-8, p.lat));
+            break;
+          }
+        }
+      }
+      // 能量满且前方即将有标志桶 → 起飞(任何宽度都可)
+      if(flyReady){
+        for(i=0;i<cones.length;i++){ var cc=cones[i].s-car.sCar; if(cc>20 && cc<1300){ startFlight(); break; } }
+      }
+    }
+    // 最终按"四角安全余量"钳制在车道内
+    var lo=X0+cs[idx]-safe, hi=X0+cs[idx]+safe;
+    target=Math.max(30,Math.min(W-30,Math.max(lo,Math.min(hi,target))));
+    // 指数平滑跟随: 高速/大偏差强收敛, 小偏差平顺(无过冲)
+    var errV=target-car.x;
+    var base=Math.min(1, 0.5 + car.kmh*0.001);
+    var alpha=Math.min(1, Math.max(base, Math.abs(errV)/(Math.max(1,safe))));
+    car.x += errV*alpha;
+    if(car.x<26){ car.x=26; } if(car.x>W-26){ car.x=W-26; }
+  }
+
+  // ============================================================
+  //  更新
+  // ============================================================
+  function update(dt){
+    frame++;
+    if(mode==='menu'){
+      // 氛围缓慢滚动
+      car.sCar += 46*dt;
+      Road.ensureUpTo(car.sCar+cy+900);
+      sampleRoadRows();
+      return;
+    }
+    if(mode==='ready'){
+      readyT-=dt;
+      var n=Math.ceil(readyT);
+      if(n<0)n=0;
+      elRdyTxt.textContent = n>0?String(n):'GO!';
+      if(readyT<=0){
+        elRdy.classList.remove('on');
+        mode='run';
+      }
+      updateFx(dt);
+      sampleRoadRows();
+      return;
+    }
+    if(mode==='run'){
+      var d=curDiff();
+      // —— 自动加速:速度随时间持续攀升(无需油门/刹车) ——
+      car.kmh = Math.min(KMH_CAP, car.kmh + d.rise*dt);
+      // 起步引导:开局几秒提示只用左右(AI演示时不打扰)
+      if(aiMode){ elGoHint.classList.remove('on'); }
+      else { elGoHint.classList.toggle('on', car.runT<3.5); }
+      // —— AI 自动驾驶接管输入 ——
+      if(aiMode) aiDrive();
+
+      // —— 横向转向(仅 ← → 阻尼惯性; 快速连点会逐级增强) ——
+      var steer=0;
+      if(keys.ArrowLeft) steer -= d.steer;
+      if(keys.ArrowRight) steer += d.steer;
+      // 连击增益: 只作用于手动模式当前按下的方向, 松开后自然消退
+      var combo=0;
+      if(!aiMode){
+        if(keys.ArrowLeft && tapN[0]>0 && (gTime-tapT[0])<0.30) combo=tapN[0];
+        else if(keys.ArrowRight && tapN[1]>0 && (gTime-tapT[1])<0.30) combo=tapN[1];
+      }
+      var mult=1 + combo*0.14;                 // 连点: 转向加速度更快
+      car.vx += steer*mult*dt;
+      car.vx *= Math.exp(-(d.damp||4.9)*dt);   // 更高阻尼=松开后滑行更短,操控更精细
+      var latMaxEff = d.latMax*(aiMode?1.55:1)*(1 + (aiMode?0:combo*0.12));  // 连点提升横向上限(封顶≈2.1x)
+      if(car.vx> latMaxEff) car.vx= latMaxEff;
+      if(car.vx<-latMaxEff) car.vx=-latMaxEff;
+      car.x += car.vx*dt;
+      if(car.x<26){ car.x=26; if(car.vx<0)car.vx=0; }
+      if(car.x>W-26){ car.x=W-26; if(car.vx>0)car.vx=0; }
+
+      // —— 前进里程 / 距离 / 时间 ——
+      var scrollPx = car.kmh*KMH2PX;
+      car.sCar += scrollPx*dt;
+      car.dist += (car.kmh/3.6)*dt;
+      car.runT += dt;
+      if(car.kmh>car.topKmh) car.topKmh=car.kmh;
+
+      // —— 姿态:车头随速度前倾 + 朝向 ——
+      var targetPitch = Math.min(1, car.kmh/300);
+      car.pitch += (targetPitch-car.pitch)*Math.min(1, 12*dt);
+      var targetRot = Math.atan2(Road.slopeAt(car.sCar), 1);
+      var bank = Math.atan2(car.vx, 900);
+      targetRot += bank*0.35;
+      var dr=targetRot-car.rot;
+      while(dr> Math.PI) dr-=Math.PI*2;
+      while(dr<-Math.PI) dr+=Math.PI*2;
+      car.rot += dr*Math.min(1, 10*dt);
+
+      // 车尾拖影(飞行时为粉色闪光)
+      if(car.kmh>35){
+        ghostTimer+=dt;
+        var gapT = flying ? 0.018 : 0.028;
+        if(ghostTimer>gapT){
+          ghostTimer=0;
+          ghosts.unshift({x:car.x,y:cy,rot:car.rot,t:0,kind:(flying?'pink':'mag')});
+          if(ghosts.length>16) ghosts.pop();
+        }
+      } else { ghosts.length=0; }
+
+      Road.ensureUpTo(car.sCar+cy+900);
+      sampleRoadRows();
+      ensurePicks(car.sCar+cy+900);
+      collectPicks();
+      ensureCones(car.sCar+cy+900);
+      hitCones();
+      ensurePads(car.sCar+cy+900);
+      ensureGoldPad();
+      collectPads();
+      // 飞行粉色闪光拖尾
+      if(flying){
+        for(var tr=0;tr<2;tr++){
+          particles.push({x:car.x+(Math.random()-0.5)*22, y:cy+16+Math.random()*10,
+            vx:(Math.random()-0.5)*50, vy:20+Math.random()*40,
+            life:0.18+Math.random()*0.18, t:0, r:1.5+Math.random()*2.2,
+            c:(Math.random()<0.5?'#ff6ff0':'#ffd1fb')});
+        }
+      }
+
+      // —— 飞行计时(落地后立即恢复碰撞判定) ——
+      if(flying){
+        flyT-=dt;
+        if(flyT<=0){ flyT=0; flying=false; }
+      }
+
+      if(!flying){
+        // —— 多边形四角碰撞 + 贴边警示 (仅非飞行; 分叉时任一车道内即安全) ——
+        var warnM=1e9; var nearestSide=0;
+        var corners=getCorners();
+        for(var ci=0;ci<4;ci++){
+          var c=corners[ci];
+          var cs=car.sCar + (cy-c.y);
+          var offs=Road.laneOffsets(cs);
+          var inRoad=false, minM=1e9, sd=0;
+          for(var j=0;j<offs.length;j++){
+            var lat=(c.x-(X0+offs[j]));
+            var half=Road.halfWidthAt(cs);
+            var margin=half-Math.abs(lat);
+            if(margin>=0){
+              inRoad=true;
+              if(margin<minM){ minM=margin; sd=lat>0?1:-1; }
+            }
+          }
+          if(!inRoad){
+            crashCar();
+            updateFx(dt);
+            return;
+          }
+          if(minM<warnM){ warnM=minM; nearestSide=sd; }
+        }
+        warnedSide=nearestSide;
+        // 警示强度
+        var want = warnM<WARN_ZONE ? (1-warnM/WARN_ZONE) : 0;
+        vignA += (want-vignA)*Math.min(1,10*dt);
+      } else {
+        // 飞行中无视路障, 红色警示消退
+        warnedSide=0;
+        vignA*=Math.exp(-3*dt);
+      }
+
+      updateFx(dt);
+      return;
+    }
+    if(mode==='over'){
+      overT+=dt;
+      if(overT>0.6 && !overShown) showOverPanel();
+      if(overT>1.4) shake*=0.88; else shake*=0.95;
+      // 撞击红色警示在结算面板出现前保持醒目
+      if(overT<0.85) vignA=Math.max(vignA,0.45); else vignA*=0.985;
+      updateFx(dt);
+      // 静止的道路仍画,粒子照常运动
+      return;
+    }
+  }
+
+  function updateFx(dt){
+    // 粒子
+    for(var i=particles.length-1;i>=0;i--){
+      var p=particles[i];
+      p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=340*dt;
+      if(p.t>=p.life) particles.splice(i,1);
+    }
+    // 拖影老化
+    for(var j=ghosts.length-1;j>=0;j--){
+      ghosts[j].t+=dt;
+      if(ghosts[j].t>0.42) ghosts.splice(j,1);
+    }
+    flashA=Math.max(0,flashA-dt*2.4);
+    shake=Math.max(0,shake-dt*30);
+    if(mode!=='run') vignA=Math.max(0,vignA-dt*1.5);
+  }
+
+  // ---------- 四角(屏幕坐标), 旋转车体 ----------
+  function getCorners(){
+    var lx=-HW, rx=HW, ty=-HH, by=HH;
+    var cos=Math.cos(car.rot), sin=Math.sin(car.rot);
+    var pts=[
+      [lx,ty],[rx,ty],[rx,by],[lx,by]
+    ];
+    var out=[];
+    for(var i=0;i<4;i++){
+      var px=pts[i][0], py=pts[i][1];
+      var wx=px*cos - py*sin;
+      var wy=px*sin + py*cos;
+      out.push({x:car.x+wx, y:cy+wy});
+    }
+    return out;
+  }
+
+  // ============================================================
+  //  渲染
+  // ============================================================
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    // 震屏
+    ctx.save();
+    if(shake>0.2){
+      ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
+    }
+    drawBG();
+    if(mode==='menu'){
+      drawRoad();
+      drawCar(true);
+    } else {
+      drawRoad();
+      drawPads();
+      drawPicks();
+      drawCones();
+      drawGhosts();
+      if(mode!=='over' || overT<0.5) drawCar(false);
+      drawParticles();
+    }
+    ctx.restore();
+    drawVignette();
+    if(mode==='run' && !flying) drawWarnArrows();
+    drawHUD();
+  }
+
+  function drawBG(){
+    // 底色
+    var g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#05070f');
+    g.addColorStop(0.5,'#070a16');
+    g.addColorStop(1,'#04060d');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+    // 中央霓虹辉光(车底)
+    var rg=ctx.createRadialGradient(X0,cy,10,X0,cy,H*0.9);
+    rg.addColorStop(0,'rgba(77,227,255,0.05)');
+    rg.addColorStop(1,'rgba(77,227,255,0)');
+    ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+
+    // 横向移动光栅线(速度感)
+    ctx.lineWidth=1;
+    ctx.strokeStyle='rgba(77,227,255,0.045)';
+    ctx.beginPath();
+    var spc=92;
+    var offs=(car.sCar*0.55)%spc;
+    for(var y=offs;y<H;y+=spc){ ctx.moveTo(0,y); ctx.lineTo(W,y); }
+    ctx.stroke();
+    // 纵向静态网格
+    ctx.strokeStyle='rgba(77,227,255,0.03)';
+    ctx.beginPath();
+    for(var x=(X0%150)+0;x<W;x+=150){ ctx.moveTo(x,0); ctx.lineTo(x,H); }
+    ctx.stroke();
+  }
+
+  function drawRoad(){
+    if(!roadAL) return;
+    var Hh=H;
+
+    // —— 路面填充(车道A与车道B两个子多边形, 默认填充规则取并集; 分叉段中间自然留空) ——
+    var rg=ctx.createLinearGradient(0,0,W,0);
+    rg.addColorStop(0,'rgba(9,13,20,0)');
+    rg.addColorStop(0.5,'rgba(16,22,34,0.96)');
+    rg.addColorStop(1,'rgba(9,13,20,0)');
+    ctx.fillStyle=rg;
+    ctx.beginPath();
+    ctx.moveTo(roadAL[0],Hh);
+    for(var i=1;i<=Hh;i++) ctx.lineTo(roadAL[i],Hh-i);
+    for(var i2=Hh;i2>=0;i2--) ctx.lineTo(roadAR[i2],Hh-i2);
+    ctx.closePath();
+    ctx.moveTo(roadBL[0],Hh);
+    for(var i3=1;i3<=Hh;i3++) ctx.lineTo(roadBL[i3],Hh-i3);
+    for(var i4=Hh;i4>=0;i4--) ctx.lineTo(roadBR[i4],Hh-i4);
+    ctx.closePath();
+    ctx.fill();
+
+    // —— 中央虚线(车道重合时画一条中线, 分离后各自车道中线) ——
+    ctx.lineWidth=3.2; ctx.lineCap='round';
+    ctx.strokeStyle='rgba(180,245,255,0.5)';
+    ctx.shadowColor='rgba(77,227,255,0.5)'; ctx.shadowBlur=5;
+    var spc=48, dl=20;
+    // 车道A中线
+    ctx.beginPath();
+    var openA=false;
+    for(var ya=Hh;ya>=0;ya--){
+      var sa=car.sCar+(cy-ya);
+      var ma=((sa%spc)+spc)%spc;
+      var cxa=(roadAL[Hh-ya]+roadAR[Hh-ya])/2;
+      if(ma<dl){ if(!openA){ ctx.moveTo(cxa,ya); openA=true; } else ctx.lineTo(cxa,ya); }
+      else openA=false;
+    }
+    ctx.stroke();
+    // 车道B中线(仅两车道真正分离的行段)
+    ctx.beginPath();
+    var openB=false;
+    for(var yb=Hh;yb>=0;yb--){
+      var sb=car.sCar+(cy-yb);
+      var mb=((sb%spc)+spc)%spc;
+      var idxb=Hh-yb;
+      var cxb=(roadBL[idxb]+roadBR[idxb])/2;
+      var sameLane=Math.abs((roadAL[idxb]+roadAR[idxb])-(roadBL[idxb]+roadBR[idxb]))<3;
+      if(sameLane){ openB=false; continue; }
+      if(mb<dl){ if(!openB){ ctx.moveTo(cxb,yb); openB=true; } else ctx.lineTo(cxb,yb); }
+      else openB=false;
+    }
+    ctx.stroke();
+    ctx.shadowBlur=0;
+
+    // —— 霓虹边界 ——
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    function strokeFull(arr, blur, lw, col){
+      ctx.shadowBlur=blur;
+      ctx.strokeStyle=col; ctx.lineWidth=lw;
+      ctx.beginPath();
+      ctx.moveTo(arr[0],Hh);
+      for(var q=1;q<=Hh;q++) ctx.lineTo(arr[q],Hh-q);
+      ctx.stroke();
+    }
+    function strokeSplit(arr, blur, lw, col){
+      // 只在两车道分离段绘制(避免分叉过渡处交叉)
+      ctx.shadowBlur=blur;
+      ctx.strokeStyle=col; ctx.lineWidth=lw;
+      ctx.beginPath();
+      var pen=false;
+      for(var q2=0;q2<=Hh;q2++){
+        var y2=Hh-q2;
+        if(arr===roadAR ? (roadBL[q2]-roadAR[q2]<=2) : (roadBL[q2]-roadAR[q2]<=2)){
+          pen=false; continue;
+        }
+        if(!pen){ ctx.moveTo(arr[q2],y2); pen=true; } else ctx.lineTo(arr[q2],y2);
+      }
+      ctx.stroke();
+    }
+    // 外侧霓虹(最左=车道A左缘, 最右=车道B右缘): 外发光+核心亮线
+    ctx.shadowColor='rgba(77,227,255,0.95)';
+    strokeFull(roadAL,16,6,'rgba(50,215,255,0.9)');
+    strokeFull(roadBR,16,6,'rgba(50,215,255,0.9)');
+    ctx.shadowColor='rgba(77,227,255,0.95)';
+    strokeFull(roadAL,7,2,'rgba(220,250,255,0.95)');
+    strokeFull(roadBR,7,2,'rgba(220,250,255,0.95)');
+    // 分叉内侧缘(车道A右缘与车道B左缘, 分离时才出现)
+    ctx.shadowColor='rgba(77,227,255,0.7)';
+    strokeSplit(roadAR,12,5,'rgba(60,215,255,0.85)');
+    strokeSplit(roadBL,12,5,'rgba(60,215,255,0.85)');
+    ctx.shadowBlur=0;
+  }
+
+  function drawGhosts(){
+    if(!ghosts.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    for(var i=0;i<ghosts.length;i++){
+      var gh=ghosts[i];
+      var a=Math.max(0,1-gh.t/0.42)*0.28;
+      ctx.globalAlpha = gh.kind==='pink' ? Math.min(0.5, a*1.6) : a;
+      ctx.fillStyle = (gh.kind==='pink') ? '#ff7bf2' : '#ff2fd6';
+      ctx.translate(gh.x,gh.y); ctx.rotate(gh.rot); ctx.scale(CAR_S,CAR_S);
+      ctx.beginPath();
+      pathCarBody();
+      ctx.fill();
+      ctx.setTransform(1,0,0,1,0,0);
+    }
+    ctx.restore();
+  }
+
+  function pathCarBody(){
+    // 车身(中心为原点, 前=上) —— 以基准尺寸绘制, 实际渲染由外层 CAR_S 统一缩放
+    rounded(-BASE_CAR_W/2,-BASE_CAR_H/2,BASE_CAR_W,BASE_CAR_H,8);
+  }
+
+  function drawCar(menuMode){
+    var px=car.x, py=cy;
+    var scaleY=1 - 0.035*car.pitch;   // 前倾压缩
+    // 自动加速版:尾焰强度随速度
+    var flame=(car.kmh>8) ? Math.min(1,car.kmh/240) : 0;
+
+    ctx.save();
+    ctx.translate(px,py);
+    ctx.rotate(car.rot);
+    ctx.scale(CAR_S, Math.max(0.86,scaleY)*CAR_S);   // 整体缩小
+
+    // —— 底部投影/光晕 ——
+    var under=ctx.createRadialGradient(0,0,2,0,0,30);
+    under.addColorStop(0, car.kmh>60 ? 'rgba(255,47,214,0.35)' : 'rgba(77,227,255,0.25)');
+    under.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=under;
+    ctx.beginPath(); ctx.ellipse(0,0,26,20,0,0,Math.PI*2); ctx.fill();
+
+    // 尾焰(车尾, 向 +y 屏幕下方喷)
+    if(flame>0.02){
+      var fl=8+flame*30+(Math.random()*6);
+      ctx.save();
+      ctx.shadowColor='#ff2fd6'; ctx.shadowBlur=18;
+      ctx.fillStyle='rgba(255,110,60,'+(0.75*flame)+')';
+      ctx.beginPath();
+      ctx.moveTo(-7, BASE_CAR_H/2-2);
+      ctx.lineTo(7, BASE_CAR_H/2-2);
+      ctx.lineTo(0, BASE_CAR_H/2-2+fl);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle='rgba(255,230,120,'+(0.85*flame)+')';
+      ctx.beginPath();
+      ctx.moveTo(-3.5, BASE_CAR_H/2-2);
+      ctx.lineTo(3.5, BASE_CAR_H/2-2);
+      ctx.lineTo(0, BASE_CAR_H/2-2+fl*0.55);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+
+    // —— 车身 ——
+    ctx.shadowColor='#ff2fd6'; ctx.shadowBlur=16;
+    ctx.fillStyle='#ffe14d';
+    ctx.beginPath();
+    rounded(-BASE_CAR_W/2,-BASE_CAR_H/2,BASE_CAR_W,BASE_CAR_H,8);
+    ctx.fill();
+    ctx.shadowBlur=0;
+
+    // 车身渐变条(高光)
+    var bg=ctx.createLinearGradient(0,-BASE_CAR_H/2,0,BASE_CAR_H/2);
+    bg.addColorStop(0,'rgba(255,255,255,0.5)');
+    bg.addColorStop(0.5,'rgba(255,255,255,0.06)');
+    bg.addColorStop(1,'rgba(0,0,0,0.16)');
+    ctx.fillStyle=bg;
+    ctx.beginPath();
+    rounded(-BASE_CAR_W/2,-BASE_CAR_H/2,BASE_CAR_W,BASE_CAR_H,8);
+    ctx.fill();
+
+    // 中央品红条纹
+    ctx.fillStyle='#ff2fd6';
+    ctx.fillRect(-4.5,-BASE_CAR_H/2+3,9,BASE_CAR_H-6);
+
+    // 座舱
+    ctx.fillStyle='#0d1226';
+    rounded(-9,-14,18,17,5); ctx.fill();
+    ctx.strokeStyle='rgba(77,227,255,0.9)'; ctx.lineWidth=1.4;
+    rounded(-9,-14,18,17,5); ctx.stroke();
+
+    // 车头灯(前方/上方)
+    ctx.shadowColor='#4de3ff'; ctx.shadowBlur=10;
+    ctx.fillStyle='#bff4ff';
+    ctx.fillRect(-10,-BASE_CAR_H/2+1.5,6,3.2);
+    ctx.fillRect(4,-BASE_CAR_H/2+1.5,6,3.2);
+    ctx.shadowBlur=0;
+
+    // 车轮
+    ctx.fillStyle='#05070c';
+    rounded(-19,-12,8,22,3); ctx.fill();
+    rounded(11,-12,8,22,3); ctx.fill();
+    ctx.fillStyle='rgba(77,227,255,0.55)';
+    ctx.fillRect(-19,-5,8,2);
+    ctx.fillRect(11,-5,8,2);
+    ctx.restore();
+
+    if(flying){
+      // 飞行光翼 + 悬浮光环
+      var flap=Math.sin(gTime*26)*4;
+      var wl=(BASE_CAR_W*0.95)*CAR_S;
+      ctx.save();
+      ctx.translate(px,py); ctx.rotate(car.rot);
+      ctx.globalCompositeOperation='lighter';
+      ctx.shadowColor='#4de3ff'; ctx.shadowBlur=16;
+      ctx.fillStyle='rgba(77,227,255,0.38)';
+      ctx.beginPath();
+      ctx.moveTo(-7,0); ctx.lineTo(-wl,-5-flap); ctx.lineTo(-wl*0.72,0); ctx.lineTo(-wl,9+flap);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(7,0); ctx.lineTo(wl,-5-flap); ctx.lineTo(wl*0.72,0); ctx.lineTo(wl,9+flap);
+      ctx.closePath(); ctx.fill();
+      ctx.shadowBlur=12;
+      ctx.fillStyle='rgba(210,252,255,0.55)';
+      ctx.beginPath(); ctx.arc(0,0,11*CAR_S,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    if(menuMode){
+      // 菜单里车辆静止的小光晕点缀
+      ctx.save();
+      ctx.globalCompositeOperation='lighter';
+      ctx.fillStyle='rgba(255,47,214,0.08)';
+      ctx.beginPath(); ctx.arc(px,py,26*CAR_S+Math.sin(gTime*3)*5,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawParticles(){
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    for(var i=0;i<particles.length;i++){
+      var p=particles[i];
+      var a=1-p.t/p.life;
+      ctx.globalAlpha=a;
+      ctx.shadowColor=p.c; ctx.shadowBlur=10;
+      ctx.fillStyle=p.c;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r*(0.6+0.4*a),0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+    ctx.shadowBlur=0;
+  }
+
+  function drawVignette(){
+    // 常驻暗角
+    var vg=ctx.createRadialGradient(W/2,H*0.62,H*0.35,W/2,H*0.62,H*0.85);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(1,'rgba(0,0,0,0.55)');
+    ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+
+    // 贴边红色危险闪烁
+    var a=Math.max(0, Math.min(0.95,vignA));
+    if(a>0.01){
+      var pulse=(mode==='run') ? (0.72+0.28*Math.sin(gTime*22)) : 1;
+      var rv=ctx.createRadialGradient(W/2,H*0.55,H*0.42,W/2,H*0.55,Math.max(W,H)*0.62);
+      rv.addColorStop(0,'rgba(255,10,30,0)');
+      rv.addColorStop(1,'rgba(255,10,30,'+(0.95*a*pulse).toFixed(3)+')');
+      ctx.fillStyle=rv; ctx.fillRect(0,0,W,H);
+    }
+    // 撞击白闪
+    if(flashA>0.01){
+      ctx.fillStyle='rgba(255,255,255,'+(flashA*0.9).toFixed(3)+')';
+      ctx.fillRect(0,0,W,H);
+    }
+  }
+
+  function drawWarnArrows(){
+    if(vignA<0.05 || mode!=='run') return;
+    var a=0.25+vignA*0.55;
+    ctx.save();
+    ctx.globalAlpha=Math.min(0.95,a);
+    ctx.fillStyle='#ff2233';
+    ctx.shadowColor='#ff2233'; ctx.shadowBlur=12;
+    var mx=warnedSide>0? W-70:70;
+    var n=5;
+    for(var i=0;i<n;i++){
+      var y=H*0.2+i*26;
+      var x=mx + (warnedSide>0? -14:14);
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.rotate(warnedSide>0? Math.PI/2 : -Math.PI/2);
+      ctx.beginPath();
+      ctx.moveTo(0,-9); ctx.lineTo(8,7); ctx.lineTo(-8,7);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // 每一帧 HUD 文本
+  function drawHUD(){
+    if(mode==='menu') return;
+    elSpd.textContent=Math.max(0,Math.round(car.kmh));
+    elDist.textContent=car.dist.toFixed(1)+' m';
+    elTime.textContent=car.runT.toFixed(1)+' s';
+    // 能量/飞行面板
+    var em=curEnergyMax();
+    elEnTxt.textContent='⚡ '+energyPieces+' / '+em;
+    var st=elFlyState;
+    if(flying){
+      st.textContent='✈ 飞行中 '+Math.max(0,flyT).toFixed(1)+'s';
+      st.className='flynow';
+    } else if(flyReady && mode==='run'){
+      st.textContent='⚡ 能量满!按 空格 飞行 5s';
+      st.className='flyready';
+    } else {
+      st.textContent='——';
+      st.className='';
+    }
+  }
+
+  // ---------- 工具 ----------
+  function rounded(x,y,w,h,r){
+    r=Math.min(r,w/2,h/2);
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  // ============================================================
+  //  键盘 + 焦点(兼容 iframe 内嵌预览)
+  // ============================================================
+  var ARROWS={ArrowUp:1,ArrowDown:1,ArrowLeft:1,ArrowRight:1,Space:1,Enter:1};
+  function normKey(e){ var k=e.code||e.key||''; if(k===' '||k==='Spacebar') k='Space'; return k; }
+  function focusGame(){ try{ if(document.activeElement!==cvs) cvs.focus(); }catch(err){} }
+
+  function handleKeyDown(e){
+    if(e._dkzDone) return; e._dkzDone=true;   // window/document 双监听去重
+    var k=normKey(e);
+    if(!k) return;
+    if(ARROWS[k]) e.preventDefault();
+    // AI 演示中按左右方向键 → 玩家立即接管
+    if(aiMode && mode==='run' && (k==='ArrowLeft'||k==='ArrowRight')) aiTakeover();
+    keys[k]=true;
+    if(k==='Space'||k==='Enter'){
+      if(mode==='over'&&overShown){ initRun(diffKey); if(aiMode) aiSetRdyTag(); return; }
+      if(mode==='run' && flyReady && !aiMode){ startFlight(); return; }   // AI 模式由 aiDrive 自主决定起飞
+    }
+    // 手动模式连点检测(间隔<50ms 且非系统长按 repeat)
+    if(!aiMode && mode==='run' && !e.repeat){
+      if(k==='ArrowLeft' || k==='ArrowRight'){
+        var ti=(k==='ArrowLeft')?0:1;
+        if(gTime - tapT[ti] < 0.05){
+          tapN[ti]=Math.min(9, tapN[ti]+1);
+        } else {
+          tapN[ti]=0;      // 间隔较大: 视为普通按键, 不积累
+        }
+        tapT[ti]=gTime;
+      }
+    }
+    if(k==='KeyR'&&(mode==='run'||mode==='over')){ initRun(diffKey); if(aiMode) aiSetRdyTag(); return; }
+    if(k==='KeyM'&&mode!=='menu'){ goMenu(); }
+  }
+  function handleKeyUp(e){
+    var k=normKey(e); if(!k) return;
+    keys[k]=false;
+  }
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+  document.addEventListener('keydown', handleKeyDown);   // 双通道:保证方向键能到达
+  window.addEventListener('blur', function(){ keys={}; tapN[0]=0; tapN[1]=0; });
+  // 任意指针交互后把焦点还给画布(点击难度按钮/游戏画面后方向键立即可用)
+  window.addEventListener('pointerdown', function(){ focusGame(); }, true);
+  window.addEventListener('touchstart', function(){ focusGame(); }, true);
+
+  // ---------- 按钮 ----------
+  function bindBtn(id,fn){
+    var b=document.getElementById(id);
+    if(b) b.addEventListener('click', function(){ fn(); focusGame(); });
+  }
+  bindBtn('dbtnEasy', function(){ initRun('easy'); });
+  bindBtn('dbtnMed',  function(){ initRun('med'); });
+  bindBtn('dbtnHard', function(){ initRun('hard'); });
+  bindBtn('againBtn', function(){ initRun(diffKey); if(aiMode) aiSetRdyTag(); });
+  bindBtn('menuBtn2', function(){ goMenu(); });
+  bindBtn('aiEasy', function(){ startAI('easy'); });
+  bindBtn('aiMed',  function(){ startAI('med'); });
+  bindBtn('aiHard', function(){ startAI('hard'); });
+
+  // ============================================================
+  //  主循环
+  // ============================================================
+  function loop(t){
+    var dt=(t-lastT)/1000;
+    if(dt>0.05) dt=0.05;
+    if(dt<0) dt=0;
+    lastT=t;
+    gTime+=dt;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- 启动 ----------
+  refreshBestTexts();
+  resize();
+  buildRoadBuffers();
+  goMenu();   // 进入主菜单(氛围滚动)
+  requestAnimationFrame(function(t){ lastT=t; requestAnimationFrame(loop); });
+
+  // 兜底:任何脚本错误都在左下角给出可见提示,便于定位"无法开始"的原因
+  window.addEventListener('error', function(ev){
+    try{
+      var eb=document.getElementById('errbar');
+      if(eb){
+        eb.style.display='block';
+        eb.textContent='运行错误: '+(ev.message||ev.error||'未知')+'\n可尝试用浏览器直接打开本 HTML 文件';
+      }
+    }catch(err){}
+  });
+
+  // 调试/自动化测试钩子(不影响正常游玩)
+  window.__dkTest = {
+    state: function(){
+      return { mode:mode, ai:aiMode, diff:diffKey, energyPieces:energyPieces, em:curEnergyMax(), flyReady:flyReady,
+               flying:flying, flyT:flyT, picks:picks.length, cones:cones.length, pads:pads.length,
+               forks:Road.forks.length,
+               segs:Road.segs.length, sCar:car?car.sCar:0, carX:car?car.x:0, spread:Road.spreadAt(car?car.sCar:0),
+               halfWidth:Road.halfWidthAt(car?car.sCar:0), kmh:Math.round(car?car.kmh:0), dist:Math.round(car?car.dist:0),
+               overShown:overShown, overT:overT };
+    },
+    // 瞄准前方最近的标志桶(把车横向对准它, 用于测试)
+    aimCone: function(){
+      if(!cones.length) return false;
+      var best=null;
+      for(var i=0;i<cones.length;i++){ var ds=cones[i].s-car.sCar; if(ds>=-20 && ds<6000 && (!best||ds<best.ds)) best={c:cones[i],ds:ds}; }
+      if(!best) return false;
+      car.x = itemScreenX(best.c);
+      return true;
+    },
+    // 分叉中段宽度信息(验证支路收窄, 防"瘤子")
+    forkMid: function(){
+      if(!Road.forks.length) return null;
+      var f=Road.forks[0];
+      return { hw:Math.round(Road.hw), midHalf:Math.round(Road.halfWidthAt((f.s0+f.s1)/2)), G:Math.round(f.G) };
+    },
+    // 校验所有路件(能量块/标志桶)都落在车道内, 返回越界数量
+    onRoadCheck: function(){
+      var bad=0, i, it;
+      for(i=0;i<picks.length;i++){ it=picks[i]; if(Math.abs(it.lat)>Road.halfWidthAt(it.s)+0.01) bad++; if(it.lane>=(Road.laneOffsets(it.s).length)) bad++; }
+      for(i=0;i<cones.length;i++){ it=cones[i]; if(Math.abs(it.lat)>Road.halfWidthAt(it.s)+0.01) bad++; if(it.lane>=(Road.laneOffsets(it.s).length)) bad++; }
+      return bad;
+    },
+    addEnergy: function(n){ energyPieces+=n; if(energyPieces>=curEnergyMax()){ energyPieces=curEnergyMax(); flyReady=true; } },
+    // 测试用: 在车前 40px 处生成起飞滑道并让车对准它
+    spawnPad: function(kind){
+      var s=car.sCar+40;
+      pads.push({s:s, lane:0, lat:0, kind:(kind==='gold'?'gold':'pad')});
+      car.x=itemScreenX({s:s, lane:0, lat:0});
+    },
+    setFly: function(t){ if(t>0 && !flying){ flying=true; flyT=t; energyPieces=0; flyReady=false; } else if(t<=0){ flying=false; flyT=0; } },
+    toCenter: function(){ var o=Road.laneOffsets(car.sCar); car.x=X0+o[0]; },
+    toOff: function(v){ car.x=X0+v; }
+  };
+
+})();
+}catch(err){
+  try{
+    var eb=document.getElementById('errbar');
+    if(eb){ eb.style.display='block'; eb.textContent='初始化错误: '+(err.stack||err.message||String(err)); }
+  }catch(_){}
+}
+</script>
+</body>
+</html>
